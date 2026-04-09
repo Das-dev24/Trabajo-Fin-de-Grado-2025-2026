@@ -167,17 +167,14 @@ class SerialReader:
             self.stop_scanning()
     
     #Este main es para probar si funciona, luego al usarlo hay que quitarlo:
-    # --- Ejemplo de Uso ---
 if __name__ == "__main__":
-    # Configura el puerto serial (ajusta según tu sistema)
-    reader = SerialReader(port="COM3", baudrate=115200)  # Cambia "COM3" por tu puerto (ej. "/dev/ttyUSB0" en Linux)
+    reader = SerialReader(port="COM4", baudrate=115200)  
 
     if not reader.connect():
         print("Error: No se pudo conectar al Arduino.")
         exit(1)
 
     try:
-        # Ejemplo: Inicia el escaneo y guarda los datos en un archivo CSV
         reader.run_scanning(output_file="datos_sensor.csv", max_reads=50)
     finally:
         reader.disconnect()
