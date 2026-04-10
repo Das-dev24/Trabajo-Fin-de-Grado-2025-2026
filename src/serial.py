@@ -96,9 +96,9 @@ class SerialReader:
             print("No se pudo detener el escaneo")
             return False
         
-    def change_legs(self) -> bool:
+    def change_leds(self) -> bool:
         """
-        Enciende o apaga los LEDs del sensor
+        Cambia entre lecturas de transmitacia y refractancia
         
         Returns:
             bool: True si los leds cambiaron de forma correcta, False si no
@@ -106,7 +106,7 @@ class SerialReader:
         response = self.send_command("l")
         if response is not None:
             self.leds_enabled = not self.leds_enabled
-            print(f"Los LEDS están {'encendidos' if self.leds_enabled else 'apagados'}")
+            print(f"Los LEDS están en modo {'transmitancia' if self.leds_enabled else 'refractancia'}")
             return True
         else:
             print ("No se puedo cambiar el estado de los leds")

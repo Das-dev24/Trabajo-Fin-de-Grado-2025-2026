@@ -39,9 +39,9 @@ void setup() {
   sensor.setMeasurementMode(AS7265X_MEASUREMENT_MODE_6CHAN_CONTINUOUS);
   //Parametros para cambiar cuanto tarda en hacer las mediciones y la precisión de las medidas
     //Para cambiar la sensibilidad hay que subir los ciclos, por defecto 1, máximo recomendado 150 -> tarda más en las medidas
-    sensor.setIntegrationCycles(100); 
+  sensor.setIntegrationCycles(100); 
     //Cambbiar el grano, por defecto es 1x y se puede poner: 1x, 3.7x, 16x, 64x -> a más número más calidad, pero más ruiodo -> tiene que haber poca luz
-    sensor.setGain(AS7265X_GAIN_16X);
+  sensor.setGain(AS7265X_GAIN_16X);
   sensor.disableIndicator();
 
   sensor.disableBulb(AS7265x_LED_WHITE);
@@ -64,15 +64,11 @@ void handleLineCommand(const String &line) {
       Serial.println("Scan stopped");
     }
   } else if (line.equalsIgnoreCase("l")) {
-    if (!encendidos){
-      sensor.enableBulb(AS7265x_LED_WHITE);
-      sensor.enableBulb(AS7265x_LED_IR);
-      sensor.enableBulb(AS7265x_LED_UV);
+    if (!encendidos){ //Va a ser el modo transmitancia, es decir se enciende el contrario al sensor
+      //TODO: Código que enciende placa 1 y apaga la 2
       encendidos = true;
-    } else {
-      sensor.disableBulb(AS7265x_LED_WHITE);
-      sensor.disableBulb(AS7265x_LED_IR);
-      sensor.disableBulb(AS7265x_LED_UV);
+    } else { //Va a ser el modo refractancia, es decir el del lado del sensor
+      //TODO: Código que enciende placa 2 y apaga la 1
       encendidos = false;
     }
     
