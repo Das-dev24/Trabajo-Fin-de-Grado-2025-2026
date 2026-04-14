@@ -1,7 +1,7 @@
 import serial
 import time
 import csv
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 class SerialReader:
     """
@@ -160,12 +160,12 @@ class SerialReader:
                         print(f"Lectura {i+1}: {data}")
                     else:
                         print("No hay datos disponibles.")
-                    time.sleep(0.5)  # Pequeña espera entre lecturas
+                    time.sleep(0.5)  
         except Exception as e:
             print(f"Error al escribir en el archivo: {e}")
         finally:
             self.stop_scanning()
-    
+
     #Este main es para probar si funciona, luego al usarlo hay que quitarlo:
 if __name__ == "__main__":
     reader = SerialReader(port="COM4", baudrate=115200)  
