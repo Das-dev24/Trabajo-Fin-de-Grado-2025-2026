@@ -1,2 +1,2 @@
 # Exclude userprofile folder
-$env:USERPROFILE/
+*.env
