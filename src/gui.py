@@ -2,15 +2,16 @@ import sys
 import os
 import sqlite3
 import csv
+import time
 from pathlib import Path
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QGridLayout, QComboBox,
-    QStackedWidget, QFileDialog, QMessageBox, QSizePolicy, QTableWidget,QTableWidgetItem, QHeaderView
+    QStackedWidget, QFileDialog, QMessageBox, QSizePolicy, QTableWidget,QTableWidgetItem, QHeaderView, QLineEdit
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 
 try:
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -116,6 +117,7 @@ class SpectroControlUI(QMainWindow):
         self.reader: SerialReader = None
         self.worker: SerialWorker = None
         self.captured_data: list  = []
+        self.cycles_edit = QLineEdit("15")
         self._connected  = False
         self._scanning   = False
         self._led_mode   = False
@@ -255,12 +257,12 @@ class SpectroControlUI(QMainWindow):
 
         lay.addWidget(self._section_label("Parámetros del instrumento", dark=False))
         
-        
         rows = [
             ("Canales",            "18  (410–940 nm)"),
             ("Ciclos integración", "100"),
             ("Ganancia",           "x16"),
             ("Modo",              "Continuo" ),
+            ("Duración",              "15" ),
         ]
         grid = QGridLayout()
         grid.setSpacing(4)
@@ -268,11 +270,18 @@ class SpectroControlUI(QMainWindow):
             lbl = QLabel(label)
             lbl.setStyleSheet("color: #666; font-size: 11px;")
             grid.addWidget(lbl, r, 0)
-            v = QLabel(val)
-            v.setStyleSheet("color: #222; font-size: 11px;")
-            v.setAlignment(Qt.AlignmentFlag.AlignRight)
-            grid.addWidget(lbl, r, 0)
-            grid.addWidget(v,   r, 1)
+            if label == "Duración":
+                self.cycles_edit = QLineEdit()
+                self.cycles_edit.setText(val)
+                self.cycles_edit.setPlaceholderText("Duración análisis (s)")
+                self.cycles_edit.setAlignment(Qt.AlignmentFlag.AlignRight)
+                grid.addWidget(self.cycles_edit, r, 1)
+            else:
+                v = QLabel(val)
+                v.setStyleSheet("color: #222; font-size: 11px;")
+                v.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+                grid.addWidget(v,   r, 1)
         lay.addLayout(grid)
         return frame
 
@@ -356,7 +365,7 @@ class SpectroControlUI(QMainWindow):
         self.lbl_last_save = QLabel("")
         self.lbl_last_save.setStyleSheet("color: #999; font-size: 11px;")
 
-        self.btn_start = QPushButton("▶  Iniciar captura")
+        self.btn_start = QPushButton("Hacer captura")
         self.btn_start.setFixedWidth(140)
         self.btn_start.setEnabled(False)
         self.btn_start.setStyleSheet(self._btn_style("primary", enabled=False))
@@ -491,7 +500,8 @@ class SpectroControlUI(QMainWindow):
         if not self.reader.start_scanning():
             QMessageBox.critical(self, "Error de escaneo", "No se pudo iniciar el escaneo.")
             return
-
+        texto = self.cycles_edit.text().strip()
+        duracion_ms = (int(texto) if texto.isdigit() else 15) * 1000 
         self._scanning = True
         self.worker = SerialWorker(self.reader)
         self.worker.data_received.connect(self._on_data)
@@ -507,9 +517,18 @@ class SpectroControlUI(QMainWindow):
         self.diag_scan.setText("Escaneando")
         self._set_status("Adquiriendo...")
 
+        self._acq_timer = QTimer()
+        self._acq_timer.setSingleShot(True)
+        self._acq_timer.timeout.connect(self._stop_acquisition)
+        self._acq_timer.start(duracion_ms)
+
     def _stop_acquisition(self):
         if not self._scanning:
             return
+        
+        if hasattr(self, '_acq_timer') and  self._acq_timer.isActive():
+            self._acq_timer.stop()
+
         if self.worker:
             self.worker.stop()
             self.worker = None

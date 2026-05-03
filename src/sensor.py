@@ -1,4 +1,4 @@
-import sensor
+import serial as sensor
 import time
 import csv
 from typing import List, Optional
