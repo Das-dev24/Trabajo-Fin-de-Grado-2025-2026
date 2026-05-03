@@ -1,7 +1,13 @@
 import sqlite3
+import os
+
+DB_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'data.db')
+)
 
 def seed_database():
-    conn = sqlite3.connect('data.db')
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute('''
