@@ -1,4 +1,4 @@
-import serial
+import sensor
 import time
 import csv
 from typing import List, Optional
@@ -25,10 +25,10 @@ class SerialReader:
             bool: True si la conexión fue exitosa, False si no
         """
         try: 
-            self.serial_connection = serial.Serial(self.port, self.baudrate, timeout=1)
+            self.serial_connection = sensor.Serial(self.port, self.baudrate, timeout=1)
             print(f"Conectado al puerto {self.port} a {self.baudrate}")
             return True
-        except serial.SerialException as e:
+        except sensor.SerialException as e:
             print(f"Error al conectar: {e}")
             return False
 
@@ -60,7 +60,7 @@ class SerialReader:
             response = self.serial_connection.readline().decode("utf-8").strip()
             return response if response else None
         
-        except serial.SerialException as e:
+        except sensor.SerialException as e:
             print(f"Error al enviar el comando: {e}")
             return None
         
@@ -127,7 +127,7 @@ class SerialReader:
             if line:
                 values = [float(val) for val in line.split(",")]
                 return values
-        except (serial.SerialException, ValueError) as e:
+        except (sensor.SerialException, ValueError) as e:
             print(f"Error al leer datos: {e}")
             return None
         return None

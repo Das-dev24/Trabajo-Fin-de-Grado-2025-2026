@@ -11,32 +11,37 @@ def seed_database():
     cursor = conn.cursor()
 
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS muestras (
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   espectro_raw TEXT,
-                   espectro_normalizado TEXT)
-                   ''')
-    
+        CREATE TABLE IF NOT EXISTS muestras (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            espectro_raw         TEXT,
+            espectro_normalizado TEXT
+        )
+    ''')
+
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS predicciones (
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   clase_miel varchar(255),
-                   vector_probabilidades TEXT)
-                   ''')
-    
+        CREATE TABLE IF NOT EXISTS predicciones (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            clase_miel           VARCHAR(255),
+            vector_probabilidades TEXT
+        )
+    ''')
+
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS analisis (
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   enombre_analisis varchar(255),
-                   timestamp DATETIME,
-                   id_muestra INTEGER,
-                   id_prediccion INTEGER,
-                   FOREIGN KEY (id_muestra) REFERENCES muestras(id),
-                   FOREIGN KEY (id_prediccion) REFERENCES predicciones(id))
-                   ''')
-    
+        CREATE TABLE IF NOT EXISTS analisis (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_analisis  VARCHAR(255),
+            timestamp        DATETIME,
+            id_muestra       INTEGER,
+            id_prediccion    INTEGER,
+            FOREIGN KEY (id_muestra)    REFERENCES muestras(id),
+            FOREIGN KEY (id_prediccion) REFERENCES predicciones(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
+    print(f"Base de datos inicializada en: {DB_PATH}")
 
-    if __name__ == "__main__":
-        seed_database()
+
+if __name__ == "__main__":
+    seed_database()

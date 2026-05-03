@@ -1,2 +1,4 @@
 # Exclude userprofile folder
 *.env
+*.csv
+__pycache__/
