@@ -2,7 +2,7 @@ import sys
 import os
 import sqlite3
 import csv
-import time
+import ast
 
 from pathlib import Path
 from datetime import datetime
@@ -818,17 +818,45 @@ class SpectroControlUI(QMainWindow):
             self.btn_save_csv.setStyleSheet(self._btn_style("secondary", enabled=False))
 
     def _save_csv(self):
-        if not self.captured_data:
+        
+        mean = self._compute_mean()
+        if not mean:
             return
+        
+        clase = ""
+        db_rows =  []
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+            cur.execute("""
+                SELECT m.espectro_normalizado, p.clase_miel, p.vector_probabilidades
+                FROM muestras m
+                LEFT JOIN analisis a on m.id = a.id_muestra
+                LEFT JOIN predicciones p ON a.id_prediccion = p.id
+            """)
+            row = cur.fetchall()
+            conn.close()
+            for norm, clase, probs in row:
+                espectro = ast.literal_eval(norm)
+                db_rows.append((espectro, clase, probs))
+        except sqlite3.Error:
+            pass
+
         default = f"espectro_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         path, _ = QFileDialog.getSaveFileName(self, "Guardar CSV", default, "CSV Files (*.csv)")
         if not path:
             return
+
         try:
             with open(path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(CSV_HEADER)
-                writer.writerows(self.captured_data)
+                writer.writerow(CSV_HEADER + ["clase_miel", "vector_probabilidades"])
+                if db_rows:
+                    for (norm, clase, probs) in db_rows:
+                        writer.writerow(norm + [clase, probs if clase else ""])
+                else:
+                    writer.writerow(norm + ["",""])
+
             self.lbl_last_save.setText(f"CSV guardado {datetime.now().strftime('%H:%M:%S')}")
             self._set_status("CSV guardado")
         except OSError as e:
