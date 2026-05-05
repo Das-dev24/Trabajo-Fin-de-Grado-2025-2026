@@ -3,13 +3,16 @@ import os
 import sqlite3
 import csv
 import time
+
 from pathlib import Path
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QGridLayout, QComboBox,
-    QStackedWidget, QFileDialog, QMessageBox, QSizePolicy, QTableWidget,QTableWidgetItem, QHeaderView, QLineEdit
+    QStackedWidget, QFileDialog, QMessageBox, QSizePolicy, QTableWidget,
+    QTableWidgetItem, QHeaderView, QLineEdit, QDialog, QDialogButtonBox, QFormLayout,
+    QCheckBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 
@@ -19,6 +22,13 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
+
+try:
+    import numpy as np
+    import tensorflow as tf
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
 
 import serial.tools.list_ports
 
@@ -35,7 +45,54 @@ DB_PATH = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'data.db')
 )
 
+MODEL_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models')
+)
 
+class NombreAnalisisDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Nuevo análisis")
+        self.setFixedSize(340, 130)
+        self.setStyleSheet("QDialog { background: #f0f0f0; } QLabel { color: #333; }")
+ 
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 16, 20, 12)
+        lay.setSpacing(10)
+ 
+        form = QFormLayout()
+        form.setSpacing(8)
+        self.input_nombre = QLineEdit()
+        self.input_nombre.setPlaceholderText("Ej: Muestra miel 001")
+        self.input_nombre.setStyleSheet(
+            "QLineEdit { background: white; border: 1px solid #ccc; "
+            "border-radius: 3px; padding: 5px 8px; font-size: 13px; }"
+        )
+        form.addRow("Nombre del análisis:", self.input_nombre)
+        lay.addLayout(form)
+ 
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Iniciar escaneo")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
+        lay.addWidget(buttons)
+ 
+    def _on_accept(self):
+        if not self.input_nombre.text().strip():
+            self.input_nombre.setPlaceholderText("Introduce un nombre")
+            self.input_nombre.setStyleSheet(
+                "QLineEdit { background: white; border: 1px solid #c0392b; "
+                "border-radius: 3px; padding: 5px 8px; font-size: 13px; }"
+            )
+            return
+        self.accept()
+ 
+    def nombre(self) -> str:
+        return self.input_nombre.text().strip()
+    
 class SerialWorker(QThread):
     data_received  = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
@@ -122,6 +179,9 @@ class SpectroControlUI(QMainWindow):
         self._scanning   = False
         self._led_mode   = False
 
+        self._nombre_analisis: str = ""
+        self._model = self._load_model()
+
         self.setStyleSheet("QMainWindow, QWidget { background-color: #f0f0f0; color: #222; }")
         self._init_ui()
         self._scan_ports()
@@ -147,6 +207,36 @@ class SpectroControlUI(QMainWindow):
         rl.addWidget(self.stack)
         rl.addWidget(self._build_bottom_bar())
         root.addWidget(right)
+    def _load_model(self):
+        if not TF_AVAILABLE:
+            return None
+        keras_files = list(Path(MODEL_PATH).glob("*.keras"))
+        if not keras_files:
+            return None
+        try:
+            return tf.keras.models.load_model(str(keras_files[0]))
+        except Exception:
+            return None
+        
+    def _run_inference(self, norm_vector: list) -> tuple:
+        """
+        Devuelve (clase_miel: str, probabilidades: list[float]).
+        """
+        if self._model is None:
+            return "Sin modelo", [0.0]
+ 
+        x     = np.array(norm_vector, dtype=np.float32).reshape(1, -1)
+        probs = self._model.predict(x, verbose=0)[0].tolist()
+        idx   = int(np.argmax(probs))
+ 
+        # Intentar leer nombres de clase desde metadatos del modelo
+        try:
+            clases = self._model.output_names
+        except AttributeError:
+            clases = [f"Clase_{i}" for i in range(len(probs))]
+ 
+        clase = clases[idx] if idx < len(clases) else f"Clase_{idx}"
+        return clase, [round(p, 6) for p in probs]
 
     def _build_sidebar(self) -> QFrame:
         sidebar = QFrame()
@@ -215,6 +305,13 @@ class SpectroControlUI(QMainWindow):
         lay.addWidget(self.btn_led)
 
         lay.addStretch()
+
+        model_ok   = self._model is not None
+        lbl_model  = QLabel("● Modelo cargado" if model_ok else "○ Sin modelo")
+        lbl_model.setStyleSheet(
+            f"color: {'#5a5' if model_ok else '#a55'}; font-size: 10px; padding: 2px 0;"
+        )
+        lay.addWidget(lbl_model)
 
         self.lbl_conn_status = QLabel("Desconectado")
         self.lbl_conn_status.setStyleSheet("color: #666; font-size: 11px;")
@@ -369,7 +466,7 @@ class SpectroControlUI(QMainWindow):
         self.btn_start.setFixedWidth(140)
         self.btn_start.setEnabled(False)
         self.btn_start.setStyleSheet(self._btn_style("primary", enabled=False))
-        self.btn_start.clicked.connect(self._start_acquisition)
+        self.btn_start.clicked.connect(self._request_scan)
 
         self.btn_stop = QPushButton("■  Parar")
         self.btn_stop.setFixedWidth(80)
@@ -387,6 +484,15 @@ class SpectroControlUI(QMainWindow):
         lay.addSpacing(8)
         lay.addWidget(self.lbl_last_save)
         lay.addStretch()
+        self.chk_prediccion = QCheckBox("Predecir")
+        self.chk_prediccion.setChecked(True)
+        self.chk_prediccion.setToolTip("Ejecutar inferencia del modelo tras la captura")
+        self.chk_prediccion.setStyleSheet(
+            "QCheckBox { color: #555; font-size: 12px; background: transparent; spacing: 6px; }"
+            "QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #777; border-radius: 2px; background: #e0e0e0; }"
+            "QCheckBox::indicator:checked { background-color: #3a7ebf; border-color: #3a7ebf; image: url(none); }")
+
+        lay.addWidget(self.chk_prediccion)
         lay.addWidget(self.btn_start)
         lay.addWidget(self.btn_stop)
         lay.addWidget(self.btn_save_csv)
@@ -494,20 +600,35 @@ class SpectroControlUI(QMainWindow):
             QMessageBox.warning(self, "Error LED", "No se pudo cambiar el modo de los LEDs.")
 
     
+    def _request_scan(self):
+        if not self._connected or self._scanning:
+            return
+        dlg = NombreAnalisisDialog(self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._nombre_analisis = dlg.nombre()
+        self._start_acquisition()
+ 
     def _start_acquisition(self):
         if not self._connected or self._scanning:
             return
         if not self.reader.start_scanning():
             QMessageBox.critical(self, "Error de escaneo", "No se pudo iniciar el escaneo.")
             return
-        texto = self.cycles_edit.text().strip()
-        duracion_ms = (int(texto) if texto.isdigit() else 15) * 1000 
+ 
+        if self.reader.serial_connection:
+            self.reader.serial_connection.reset_input_buffer()
+ 
+        texto       = self.cycles_edit.text().strip()
+        duracion_ms = (int(texto) if texto.isdigit() else 15) * 1000
         self._scanning = True
+        self.captured_data.clear()
+ 
         self.worker = SerialWorker(self.reader)
         self.worker.data_received.connect(self._on_data)
         self.worker.error_occurred.connect(self._on_error)
         self.worker.start()
-
+ 
         self.btn_start.setEnabled(False)
         self.btn_start.setStyleSheet(self._btn_style("primary", enabled=False))
         self.btn_stop.setEnabled(True)
@@ -515,8 +636,8 @@ class SpectroControlUI(QMainWindow):
         self.btn_save_csv.setEnabled(False)
         self.btn_save_csv.setStyleSheet(self._btn_style("secondary", enabled=False))
         self.diag_scan.setText("Escaneando")
-        self._set_status("Adquiriendo...")
-
+        self._set_status(f"Adquiriendo «{self._nombre_analisis}»…")
+ 
         self._acq_timer = QTimer()
         self._acq_timer.setSingleShot(True)
         self._acq_timer.timeout.connect(self._stop_acquisition)
@@ -549,7 +670,132 @@ class SpectroControlUI(QMainWindow):
         self._set_status("Listo")
 
         if has_data:
-            self._save_to_db(silent=True)
+            if self.chk_prediccion.isChecked():
+                self._set_status("Analizando…")
+                self._run_full_analysis()
+            else:
+                self._set_status("Guardando muestra…")
+                self._save_sample_only()
+
+    def _run_full_analysis(self):
+        """
+        Pipeline completo post-captura:
+          1. Media de lecturas  →  muestras
+          2. Inferencia modelo  →  predicciones
+          3. Registro           →  analisis
+        Todo en una sola transacción SQLite.
+        """
+        mean = self._compute_mean()
+        if not mean:
+            self._set_status("Sin datos para analizar")
+            return
+ 
+        peak = max(mean) if max(mean) > 0 else 1.0
+        norm = [round(v / peak, 6) for v in mean]
+ 
+        clase, probs = self._run_inference(norm)
+ 
+        try:
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+ 
+            # 1. muestras
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS muestras (
+                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    espectro_raw         TEXT,
+                    espectro_normalizado TEXT
+                )
+            """)
+            cur.execute(
+                "INSERT INTO muestras (espectro_raw, espectro_normalizado) VALUES (?, ?)",
+                (str(mean), str(norm))
+            )
+            id_muestra = cur.lastrowid
+ 
+            # 2. predicciones
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS predicciones (
+                    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                    clase_miel            VARCHAR(255),
+                    vector_probabilidades TEXT
+                )
+            """)
+            cur.execute(
+                "INSERT INTO predicciones (clase_miel, vector_probabilidades) VALUES (?, ?)",
+                (clase, str(probs))
+            )
+            id_prediccion = cur.lastrowid
+ 
+            # 3. analisis
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS analisis (
+                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre_analisis  VARCHAR(255),
+                    timestamp        DATETIME,
+                    id_muestra       INTEGER,
+                    id_prediccion    INTEGER,
+                    FOREIGN KEY (id_muestra)    REFERENCES muestras(id),
+                    FOREIGN KEY (id_prediccion) REFERENCES predicciones(id)
+                )
+            """)
+            ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cur.execute(
+                "INSERT INTO analisis (nombre_analisis, timestamp, id_muestra, id_prediccion) "
+                "VALUES (?, ?, ?, ?)",
+                (self._nombre_analisis, ts, id_muestra, id_prediccion)
+            )
+ 
+            conn.commit()
+            conn.close()
+ 
+            n = len(self.captured_data)
+            self.lbl_last_save.setText(f"«{self._nombre_analisis}» → {clase}  |  {ts}")
+            self._set_status(f"Análisis completado: {clase}  (media de {n} lecturas)")
+            self._refresh_history()
+ 
+        except sqlite3.Error as e:
+            self._set_status("Error al guardar en DB")
+            QMessageBox.critical(self, "Error de base de datos", str(e))
+
+    def _save_sample_only(self):
+        mean = self._compute_mean()
+        if not mean:
+            self._set_status("Sin datos para guardar")
+            return
+
+        peak = max(mean) if max(mean) > 0 else 1.0
+        norm = [round(v / peak, 6) for v in mean]
+
+        try:
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS muestras (
+                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    espectro_raw         TEXT,
+                    espectro_normalizado TEXT
+                )
+            """)
+            cur.execute(
+                "INSERT INTO muestras (espectro_raw, espectro_normalizado) VALUES (?, ?)",
+                (str(mean), str(norm))
+            )
+
+            conn.commit()
+            conn.close()
+
+            n = len(self.captured_data)
+            ts = datetime.now().strftime('%H:%M:%S')
+            self.lbl_last_save.setText(f"Muestra guardada sin predicción  |  {ts}")
+            self._set_status(f"Muestra guardada  (media de {n} lecturas, sin clasificar)")
+
+        except sqlite3.Error as e:
+            self._set_status("Error al guardar en DB")
+            QMessageBox.critical(self, "Error de base de datos", str(e))
 
     
     def _on_data(self, values: list):
@@ -571,7 +817,6 @@ class SpectroControlUI(QMainWindow):
             self.btn_save_csv.setEnabled(False)
             self.btn_save_csv.setStyleSheet(self._btn_style("secondary", enabled=False))
 
-    
     def _save_csv(self):
         if not self.captured_data:
             return
@@ -588,41 +833,18 @@ class SpectroControlUI(QMainWindow):
             self._set_status("CSV guardado")
         except OSError as e:
             QMessageBox.critical(self, "Error al guardar", str(e))
-
-    def _save_to_db(self, silent: bool = False):
-        if not self.captured_data:
-            return
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS muestras (
-                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                    espectro_raw         TEXT,
-                    espectro_normalizado TEXT
-                )
-            """)
-            saved = 0
-            for row in self.captured_data:
-                peak = max(row) if max(row) > 0 else 1.0
-                norm = [round(v / peak, 6) for v in row]
-                cur.execute(
-                    "INSERT INTO muestras (espectro_raw, espectro_normalizado) VALUES (?, ?)",
-                    (str(row), str(norm))
-                )
-                saved += 1
-            conn.commit()
-            conn.close()
-            ts = datetime.now().strftime('%H:%M:%S')
-            self.lbl_last_save.setText(f"Guardado en DB {ts} ({saved} filas)")
-            self._set_status("Guardado en DB")
-        except sqlite3.Error as e:
-            if not silent:
-                QMessageBox.critical(self, "Error de base de datos", str(e))
-            else:
-                self._set_status("Error al guardar en DB")
-
+ 
+    def _compute_mean(self) -> list:
+        n = len(self.captured_data)
+        if n == 0:
+            return []
+        num_channels = len(self.captured_data[0])
+        mean = [
+            round(sum(row[ch] for row in self.captured_data) / n, 6)
+            for ch in range(num_channels)
+        ]
+        return mean
+ 
     def _set_status(self, text: str):
         self.lbl_sys_status.setText(text)
 
@@ -633,11 +855,8 @@ class SpectroControlUI(QMainWindow):
         event.accept()
         
     def getData(self):
-
-        directorio_actual = Path(__file__).parent
-        ruta_bd = directorio_actual.parent / "data"/ "data.db"
         
-        conn = sqlite3.connect(ruta_bd)
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute('''
                               SELECT * 
                               FROM analisis''')

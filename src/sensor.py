@@ -74,6 +74,8 @@ class SerialReader:
         response = self.send_command("s")
         if response == "Scanning ...":
             self.is_scanning = True
+            time.sleep(0.5)
+            self.serial_connection.reset_input_buffer() #Limpio el buffer para quitar cualquier resto de lecturas anteriors
             print("Escaneo iniciado")
             return True
         else:
@@ -124,13 +126,20 @@ class SerialReader:
 
         try:
             line = self.serial_connection.readline().decode("utf-8").strip()
-            if line:
-                values = [float(val) for val in line.split(",")]
-                return values
+            if not line:
+                return None
+            
+            first = line.split(",")[0].strip()
+            try:
+                float(first)
+            except ValueError:
+                return None
+            
+            values = [float(val) for val in line.split(",")]
+            return values
         except (sensor.SerialException, ValueError) as e:
             print(f"Error al leer datos: {e}")
             return None
-        return None
 
     def run_scanning(self, output_file: Optional[str] = None, max_reads: int = 100):
         """
