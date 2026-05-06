@@ -13,8 +13,11 @@ def seed_database():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS muestras (
             id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-            espectro_raw         TEXT,
-            espectro_normalizado TEXT
+            espectro_raw         TEXT NOT NULL,
+            espectro_normalizado TEXT NOT NULL,
+            modo_medicion        VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+            calibracion_aplicada INTEGER     NOT NULL DEFAULT 0,
+            notas                TEXT
         )
     ''')
 
@@ -29,12 +32,22 @@ def seed_database():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS analisis (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_analisis  VARCHAR(255),
-            timestamp        DATETIME,
-            id_muestra       INTEGER,
+            nombre_analisis  VARCHAR(255) NOT NULL,
+            timestamp        DATETIME     NOT NULL,
+            id_muestra       INTEGER      NOT NULL,
             id_prediccion    INTEGER,
-            FOREIGN KEY (id_muestra)    REFERENCES muestras(id),
-            FOREIGN KEY (id_prediccion) REFERENCES predicciones(id)
+            FOREIGN KEY (id_muestra)    REFERENCES muestras(id)     ON DELETE CASCADE,
+            FOREIGN KEY (id_prediccion) REFERENCES predicciones(id) ON DELETE SET NULL
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS calibraciones (
+            tipo          VARCHAR(16) PRIMARY KEY,
+            valores       TEXT     NOT NULL,
+            timestamp     DATETIME NOT NULL,
+            modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+            CHECK (tipo IN ('blanco', 'oscuro'))
         )
     ''')
 
