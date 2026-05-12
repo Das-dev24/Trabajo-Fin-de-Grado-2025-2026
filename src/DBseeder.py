@@ -42,14 +42,16 @@ def seed_database():
     ''')
 
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS calibraciones (
-            tipo          VARCHAR(16) PRIMARY KEY,
-            valores       TEXT     NOT NULL,
-            timestamp     DATETIME NOT NULL,
-            modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
-            CHECK (tipo IN ('blanco', 'oscuro'))
-        )
-    ''')
+    CREATE TABLE IF NOT EXISTS calibraciones (
+        tipo          VARCHAR(16) NOT NULL,
+        modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+        valores       TEXT        NOT NULL,
+        timestamp     DATETIME    NOT NULL,
+        PRIMARY KEY (tipo, modo_medicion),
+        CHECK (tipo IN ('blanco', 'oscuro')),
+        CHECK (modo_medicion IN ('reflectancia', 'transmitancia'))
+    )
+''')
 
     conn.commit()
     conn.close()

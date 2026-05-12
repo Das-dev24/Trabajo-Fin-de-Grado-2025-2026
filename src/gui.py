@@ -54,6 +54,9 @@ MODEL_PATH = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models')
 )
 
+MODO_REFLECTANCIA  = "reflectancia"
+MODO_TRANSMITANCIA = "transmitancia"
+
 #### CÓDIGO #### 
 class NombreAnalisisDialog(QDialog):
     def __init__(self, parent=None):
@@ -197,9 +200,33 @@ if MATPLOTLIB_AVAILABLE:
         def update_data(self, values: list):
             self.ax.clear()
             self._setup_axes()
-            self.ax.bar(WAVELENGTHS, values, width=18, color='#3a7ebf', alpha=0.8, zorder=3)
-            peak = max(values)
-            self.ax.set_ylim(0, peak * 1.15 if peak > 0 else 1)
+
+            safe = []
+            for v in values:
+                try:
+                    fv = float(v)
+                    if fv != fv or fv in (float('inf'), float('-inf')):
+                        fv = 0.0
+                    safe.append(fv)
+                except (TypeError, ValueError):
+                    safe.append(0.0)
+
+            if len(safe) != len(WAVELENGTHS):
+                self.draw()
+                return
+
+            self.ax.bar(WAVELENGTHS, safe, width=18,
+                        color='#3a7ebf', alpha=0.8, zorder=3)
+
+            peak = max(safe) if safe else 0.0
+            if peak <= 0:
+                ymax = 1.0
+            elif peak <= 1.5:
+                ymax = max(peak * 1.15, 0.1)
+            else:                             
+                ymax = peak * 1.15
+            self.ax.set_ylim(0, ymax)
+
             self.fig.tight_layout(pad=1.5)
             self.draw()
 
@@ -209,7 +236,7 @@ if MATPLOTLIB_AVAILABLE:
             self.draw()
 
 else:
-    class SpectralCanvas(QWidget):  # type: ignore[no-redef]
+    class SpectralCanvas(QWidget):
         def __init__(self):
             super().__init__()
             lay = QVBoxLayout(self)
@@ -239,7 +266,10 @@ class SpectroControlUI(QMainWindow):
         self._nombre_analisis: str = ""
         self._model = self._load_model()
 
-        self._calibraciones: dict = {CAL_BLANCO: None, CAL_OSCURO: None}
+        self._calibraciones: dict = {
+            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
+            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
+        }
         self._modo_captura: str = "analisis"
         self._cal_tipo_pendiente: str = ""
         self._aplicar_calibracion: bool = True
@@ -613,7 +643,10 @@ class SpectroControlUI(QMainWindow):
         lay.setSpacing(6)
 
         header = QHBoxLayout()
-        header.addWidget(self._section_label("Calibración", dark=False))
+        self.lbl_cal_titulo = QLabel("CALIBRACIÓN · REFLECTANCIA")
+        self.lbl_cal_titulo.setStyleSheet(
+            "color: #999; font-size: 10px; font-weight: bold; padding: 2px 0;")
+        header.addWidget(self.lbl_cal_titulo)
         header.addStretch()
         self.chk_aplicar_cal = QCheckBox("Aplicar")
         self.chk_aplicar_cal.setChecked(True)
@@ -766,6 +799,9 @@ class SpectroControlUI(QMainWindow):
                 self.btn_led.setText("Reflectancia")
                 self.btn_led.setStyleSheet(self._btn_style("toggle_off"))
                 self.diag_led.setText("Reflectancia")
+
+            self._actualizar_label_modo_calibracion()
+            self._actualizar_estado_calibracion()
         else:
             QMessageBox.warning(self, "Error LED", "No se pudo cambiar el modo de los LEDs.")
 
@@ -783,13 +819,14 @@ class SpectroControlUI(QMainWindow):
     def _request_calibracion(self, tipo: str):
         if not self._connected or self._scanning:
             return
+        modo = self._get_modo_medicion()
         nombre = "blanco" if tipo == CAL_BLANCO else "oscuro"
-        msg = ("Prepara el sensor para la calibración en blanco"
-               if tipo == CAL_BLANCO else
-               "Tapa el sensor o apaga la luz para capturar el ruido de fondo.")
+        detalle = ("Coloca el estándar reflectante (o medio transparente, según modo)."
+                if tipo == CAL_BLANCO else
+                "Tapa el sensor o apaga la luz para registrar el ruido de fondo.")
         if QMessageBox.question(
-            self, f"Calibración: {nombre}",
-            f"Vas a capturar la referencia de {nombre}.\n\n{msg}\n\n¿Iniciar?",
+            self, f"Calibración: {nombre} ({modo})",
+            f"Vas a capturar la referencia de {nombre} para el modo «{modo}».\n\n{detalle}\n\n¿Iniciar?",
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
         ) != QMessageBox.StandardButton.Ok:
             return
@@ -813,17 +850,26 @@ class SpectroControlUI(QMainWindow):
             self._set_status("Calibración fallida: sin datos")
             return
         tipo = self._cal_tipo_pendiente
+        modo = self._get_modo_medicion()      # se calibra en el modo activo
         ts   = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self._calibraciones[tipo] = {"valores": mean, "timestamp": ts}
+
+        self._set_cal(tipo, modo, mean, ts)
         self._actualizar_estado_calibracion(tipo)
+        self._persistir_calibracion(tipo, mean, ts, modo)
 
-        n = len(self.captured_data)
+        n      = len(self.captured_data)
         nombre = "blanco" if tipo == CAL_BLANCO else "oscuro"
-        self.lbl_last_save.setText(f"Calibración {nombre} OK  |  {ts}")
-        self._set_status(f"Calibración «{nombre}» registrada (media de {n} lecturas)")
+        self.lbl_last_save.setText(f"Calibración {nombre} ({modo}) OK  |  {ts}")
+        self._set_status(
+            f"Calibración «{nombre}» en {modo} registrada (media de {n} lecturas)"
+        )
 
-    def _actualizar_estado_calibracion(self, tipo: str):
-        cal = self._calibraciones.get(tipo)
+    def _actualizar_estado_calibracion(self, tipo: str = None):
+        if tipo is None:
+            self._actualizar_estado_calibracion(CAL_BLANCO)
+            self._actualizar_estado_calibracion(CAL_OSCURO)
+            return
+        cal = self._get_cal(tipo)               # modo actual
         lbl = self.lbl_cal_blanco if tipo == CAL_BLANCO else self.lbl_cal_oscuro
         if cal is None:
             lbl.setText("Sin calibrar")
@@ -832,7 +878,7 @@ class SpectroControlUI(QMainWindow):
             try:
                 dt = datetime.strptime(cal["timestamp"], '%Y-%m-%d %H:%M:%S')
                 label = f"OK · {dt.strftime('%H:%M')}"
-            except ValueError:
+            except (ValueError, KeyError):
                 label = "OK"
             lbl.setText(label)
             lbl.setStyleSheet("color: #5a5; font-size: 11px;")
@@ -840,41 +886,34 @@ class SpectroControlUI(QMainWindow):
     def _limpiar_calibraciones(self):
         if QMessageBox.question(
             self, "Limpiar calibraciones",
-            "¿Borrar las calibraciones actuales (blanco y oscuro)?",
+            "¿Borrar TODAS las calibraciones (blanco y oscuro, en ambos modos)?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         ) != QMessageBox.StandardButton.Yes:
             return
-        self._calibraciones = {CAL_BLANCO: None, CAL_OSCURO: None}
-        self._actualizar_estado_calibracion(CAL_BLANCO)
-        self._actualizar_estado_calibracion(CAL_OSCURO)
-        self._set_status("Calibraciones eliminadas")
+        self._calibraciones = {
+            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
+            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
+        }
+        self._actualizar_estado_calibracion()
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("DELETE FROM calibraciones")
+            conn.commit()
+            conn.close()
+        except sqlite3.Error:
+            pass
+        self._set_status("Calibraciones eliminadas (todos los modos)")
 
     def _on_aplicar_cal_toggled(self, checked: bool):
         self._aplicar_calibracion = checked
         self._set_status(f"Corrección por calibración {'aplicada' if checked else 'desactivada'}")
-
-    def _aplicar_correccion(self, raw: list) -> list:
-        if not self._aplicar_calibracion:
-            return raw
-        blanco = self._calibraciones.get(CAL_BLANCO)
-        oscuro = self._calibraciones.get(CAL_OSCURO)
-        if blanco is None or oscuro is None:
-            return raw
-        b_vals, o_vals = blanco["valores"], oscuro["valores"]
-        if len(b_vals) != len(raw) or len(o_vals) != len(raw):
-            return raw
-        out = []
-        for r, b, o in zip(raw, b_vals, o_vals):
-            denom = b - o
-            out.append(0.0 if denom <= 0 else max(0.0, min((r - o) / denom, 1.5)))
-        return out
 
     def _request_manual(self):
         if not self._connected or self._scanning:
             return
         self._modo_captura = "manual"
         self._set_status("Modo manual — pulsa Parar para terminar")
-        self._start_acquisition(duracion_override_ms=10**9)  # sin límite efectivo
+        self._start_acquisition(duracion_override_ms=10**9)
 
     def _guardar_manual(self):
         if not self.captured_data:
@@ -884,8 +923,10 @@ class SpectroControlUI(QMainWindow):
         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         n = len(self.captured_data)
 
-        # Guardamos: timestamp, n_lecturas, raw_mean, corregido (si hay calibración)
-        corregido = self._aplicar_correccion(mean) if self._calibraciones[CAL_BLANCO] and self._calibraciones[CAL_OSCURO] else None
+        modo = self._get_modo_medicion()
+        cal_completa = (self._get_cal(CAL_BLANCO, modo) is not None
+                        and self._get_cal(CAL_OSCURO, modo) is not None)
+        corregido = self._aplicar_correccion(mean) if cal_completa else None
         self._capturas_manuales.append({
             "timestamp": ts,
             "n_lecturas": n,
@@ -899,27 +940,6 @@ class SpectroControlUI(QMainWindow):
         self.btn_save_manual.setStyleSheet(self._btn_style("secondary"))
         self.lbl_last_save.setText(f"Manual #{len(self._capturas_manuales)} ({n} lect.)  |  {ts}")
         self._set_status(f"Captura manual guardada en memoria (total: {len(self._capturas_manuales)})")
-
-    def _save_manual_csv(self):
-        if not self._capturas_manuales:
-            QMessageBox.information(self, "Sin datos", "No hay capturas manuales que exportar.")
-            return
-        default = f"manual_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        path, _ = QFileDialog.getSaveFileName(self, "Exportar capturas manuales", default, "CSV Files (*.csv)")
-        if not path:
-            return
-        try:
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                w = csv.writer(f)
-                w.writerow(["timestamp", "n_lecturas", "tipo"] + CSV_HEADER)
-                for cap in self._capturas_manuales:
-                    w.writerow([cap["timestamp"], cap["n_lecturas"], "raw"] + cap["raw"])
-                    if cap["corregido"] is not None:
-                        w.writerow([cap["timestamp"], cap["n_lecturas"], "corregido"] + cap["corregido"])
-            self._set_status(f"Exportadas {len(self._capturas_manuales)} capturas manuales")
-            self.lbl_last_save.setText(f"CSV manual {datetime.now().strftime('%H:%M:%S')}")
-        except OSError as e:
-            QMessageBox.critical(self, "Error al guardar", str(e))
 
     def _start_acquisition(self, duracion_override_ms: int = None):
         if not self._connected or self._scanning:
@@ -1240,7 +1260,10 @@ class SpectroControlUI(QMainWindow):
         if self.reader:
             self.reader.disconnect()
         self._capturas_manuales.clear()                  
-        self._calibraciones = {CAL_BLANCO: None, CAL_OSCURO: None}
+        self._calibraciones = {
+            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
+            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
+        }   
         event.accept()
         
     def getData(self):
@@ -1288,19 +1311,21 @@ class SpectroControlUI(QMainWindow):
 
         layout.addWidget(self.getData())
 
-    def _persistir_calibracion(self, tipo: str, valores: list, ts: str):
+    def _persistir_calibracion(self, tipo: str, valores: list, ts: str, modo: str):
         try:
             conn = sqlite3.connect(DB_PATH)
             cur  = conn.cursor()
-            cur.execute(
-                "INSERT INTO calibraciones (tipo, valores, timestamp, modo_medicion) "
-                "VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(tipo) DO UPDATE SET "
-                "valores=excluded.valores, "
-                "timestamp=excluded.timestamp, "
-                "modo_medicion=excluded.modo_medicion",
-                (tipo, str(valores), ts, self._get_modo_medicion())
-            )
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS calibraciones (
+                    tipo          VARCHAR(16) NOT NULL,
+                    modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+                    valores       TEXT        NOT NULL,
+                    timestamp     DATETIME    NOT NULL,
+                    PRIMARY KEY (tipo, modo_medicion),
+                    CHECK (tipo IN ('blanco', 'oscuro')),
+                    CHECK (modo_medicion IN ('reflectancia', 'transmitancia'))
+                )
+            """)
             conn.commit()
             conn.close()
         except sqlite3.Error as e:
@@ -1312,45 +1337,69 @@ class SpectroControlUI(QMainWindow):
                 return
             conn = sqlite3.connect(DB_PATH)
             cur  = conn.cursor()
-            cur.execute("SELECT tipo, valores, timestamp FROM calibraciones")
-            for tipo, valores_str, ts in cur.fetchall():
+            cur.execute("PRAGMA table_info(calibraciones)")
+            cols = [row[1] for row in cur.fetchall()]
+            if not cols:
+                conn.close()
+                return
+            if 'modo_medicion' in cols:
+                cur.execute("SELECT tipo, modo_medicion, valores, timestamp FROM calibraciones")
+                rows = [(t, m, v, ts) for t, m, v, ts in cur.fetchall()]
+            else:
+                cur.execute("SELECT tipo, valores, timestamp FROM calibraciones")
+                rows = [(t, MODO_REFLECTANCIA, v, ts) for t, v, ts in cur.fetchall()]
+            conn.close()
+
+            for tipo, modo, valores_str, ts in rows:
                 try:
                     valores = ast.literal_eval(valores_str)
                     if isinstance(valores, list) and len(valores) == 18:
-                        self._calibraciones[tipo] = {
-                            "valores": valores,
-                            "timestamp": ts,
-                        }
-                        self._actualizar_estado_calibracion(tipo)
+                        self._set_cal(tipo, modo, valores, ts)
                 except (ValueError, SyntaxError):
                     pass
-            conn.close()
+            self._actualizar_estado_calibracion()
         except sqlite3.Error:
             pass
-    
-    def _guardar_calibracion(self):
-        mean = self._compute_mean()
-        if not mean:
-            self._set_status("Calibración fallida: sin datos")
-            return
-        tipo = self._cal_tipo_pendiente
-        ts   = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self._calibraciones[tipo] = {"valores": mean, "timestamp": ts}
-        self._actualizar_estado_calibracion(tipo)
-        self._persistir_calibracion(tipo, mean, ts)            
-
-        n = len(self.captured_data)
-        nombre = "blanco" if tipo == CAL_BLANCO else "oscuro"
-        self.lbl_last_save.setText(f"Calibración {nombre} OK  |  {ts}")
-        self._set_status(f"Calibración «{nombre}» registrada (media de {n} lecturas)")
 
     def _get_modo_medicion(self) -> str:
         return "transmitancia" if self._led_mode else "reflectancia"
 
     def _cal_disponible_y_activa(self) -> bool:
-        return (self._aplicar_calibracion
-                and self._calibraciones[CAL_BLANCO] is not None
-                and self._calibraciones[CAL_OSCURO] is not None)
+        if not self._aplicar_calibracion:
+            return False
+        modo = self._get_modo_medicion()
+        return (self._get_cal(CAL_BLANCO, modo) is not None
+                and self._get_cal(CAL_OSCURO, modo) is not None)
+    
+    def _get_cal(self, tipo: str, modo: str = None):
+        modo = modo or self._get_modo_medicion()
+        return self._calibraciones.get(modo, {}).get(tipo)
+
+    def _set_cal(self, tipo: str, modo: str, valores: list, ts: str):
+        self._calibraciones.setdefault(
+            modo, {CAL_BLANCO: None, CAL_OSCURO: None}
+        )[tipo] = {"valores": valores, "timestamp": ts}
+
+    def _actualizar_label_modo_calibracion(self):
+        modo = self._get_modo_medicion().capitalize()
+        self.lbl_cal_titulo.setText(f"CALIBRACIÓN · {modo.upper()}")
+
+    def _aplicar_correccion(self, raw: list) -> list:
+        if not self._aplicar_calibracion:
+            return raw
+        modo   = self._get_modo_medicion()
+        blanco = self._get_cal(CAL_BLANCO, modo)
+        oscuro = self._get_cal(CAL_OSCURO, modo)
+        if blanco is None or oscuro is None:
+            return raw
+        b_vals, o_vals = blanco["valores"], oscuro["valores"]
+        if len(b_vals) != len(raw) or len(o_vals) != len(raw):
+            return raw
+        out = []
+        for r, b, o in zip(raw, b_vals, o_vals):
+            denom = b - o
+            out.append(0.0 if denom <= 0 else max(0.0, min((r - o) / denom, 1.5)))
+        return out
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
