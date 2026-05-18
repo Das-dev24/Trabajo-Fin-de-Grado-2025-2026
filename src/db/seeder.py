@@ -1,9 +1,10 @@
 import sqlite3
 import os
+import sys
 
-DB_PATH = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'data.db')
-)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from constants import DB_PATH
+
 
 def seed_database():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -23,8 +24,8 @@ def seed_database():
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS predicciones (
-            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-            clase_miel           VARCHAR(255),
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            clase_miel            VARCHAR(255),
             vector_probabilidades TEXT
         )
     ''')
@@ -42,16 +43,16 @@ def seed_database():
     ''')
 
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS calibraciones (
-        tipo          VARCHAR(16) NOT NULL,
-        modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
-        valores       TEXT        NOT NULL,
-        timestamp     DATETIME    NOT NULL,
-        PRIMARY KEY (tipo, modo_medicion),
-        CHECK (tipo IN ('blanco', 'oscuro')),
-        CHECK (modo_medicion IN ('reflectancia', 'transmitancia'))
-    )
-''')
+        CREATE TABLE IF NOT EXISTS calibraciones (
+            tipo          VARCHAR(16) NOT NULL,
+            modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+            valores       TEXT        NOT NULL,
+            timestamp     DATETIME    NOT NULL,
+            PRIMARY KEY (tipo, modo_medicion),
+            CHECK (tipo IN ('blanco', 'oscuro')),
+            CHECK (modo_medicion IN ('reflectancia', 'transmitancia'))
+        )
+    ''')
 
     conn.commit()
     conn.close()
