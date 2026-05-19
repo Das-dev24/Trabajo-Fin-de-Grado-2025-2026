@@ -1,4 +1,3 @@
-import sys
 import os
 import sqlite3
 import csv
@@ -8,20 +7,12 @@ from pathlib import Path
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QGridLayout, QComboBox,
     QStackedWidget, QFileDialog, QMessageBox, QSizePolicy, QTableWidget,
-    QTableWidgetItem, QHeaderView, QLineEdit, QDialog, QDialogButtonBox, QFormLayout,
-    QCheckBox, QMenu
+    QTableWidgetItem, QHeaderView, QLineEdit, QDialog, QCheckBox, QMenu
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-
-try:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.figure import Figure
-    MATPLOTLIB_AVAILABLE = True
-except ImportError:
-    MATPLOTLIB_AVAILABLE = False
+from PyQt6.QtCore import Qt, QTimer
 
 try:
     import numpy as np
@@ -32,220 +23,15 @@ except ImportError:
 
 import serial.tools.list_ports
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from constants import (
+    CAL_BLANCO, CAL_OSCURO, BAUDRATE, WAVELENGTHS,
+    CSV_HEADER, DB_PATH, MODEL_PATH,
+    MODO_REFLECTANCIA, MODO_TRANSMITANCIA
+)
 from sensor import SerialReader
-
-
-#### CONSTANTES ####
-CAL_BLANCO = "blanco"
-CAL_OSCURO = "oscuro"
-
-BAUDRATE    = 115200
-WAVELENGTHS = [410, 435, 460, 485, 510, 535, 560, 585,
-               610, 645, 680, 705, 730, 760, 810, 860, 900, 940]
-CSV_HEADER  = ["A_410","B_435","C_460","D_485","E_510","F_535","G_560","H_585",
-               "R_610","I_645","S_680","J_705","T_730","U_760","V_810","W_860",
-               "K_900","L_940"]
-DB_PATH = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'data.db')
-)
-
-MODEL_PATH = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models')
-)
-
-MODO_REFLECTANCIA  = "reflectancia"
-MODO_TRANSMITANCIA = "transmitancia"
-
-#### CÓDIGO #### 
-class NombreAnalisisDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Nuevo análisis")
-        self.setFixedSize(340, 130)
-        self.setStyleSheet("QDialog { background: #f0f0f0; } QLabel { color: #333; }")
- 
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(20, 16, 20, 12)
-        lay.setSpacing(10)
- 
-        form = QFormLayout()
-        form.setSpacing(8)
-        self.input_nombre = QLineEdit()
-        self.input_nombre.setPlaceholderText("Ej: Muestra miel 001")
-        self.input_nombre.setStyleSheet(
-            "QLineEdit { background: white; border: 1px solid #ccc; "
-            "border-radius: 3px; padding: 5px 8px; font-size: 13px; }"
-        )
-        form.addRow("Nombre del análisis:", self.input_nombre)
-        lay.addLayout(form)
- 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self._on_accept)
-        buttons.rejected.connect(self.reject)
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Iniciar escaneo")
-        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
-        lay.addWidget(buttons)
- 
-    def _on_accept(self):
-        if not self.input_nombre.text().strip():
-            self.input_nombre.setPlaceholderText("Introduce un nombre")
-            self.input_nombre.setStyleSheet(
-                "QLineEdit { background: white; border: 1px solid #c0392b; "
-                "border-radius: 3px; padding: 5px 8px; font-size: 13px; }"
-            )
-            return
-        self.accept()
- 
-    def nombre(self) -> str:
-        return self.input_nombre.text().strip()
-    
-class CalibracionDialog(QDialog):
-    def __init__(self, parent=None, duracion_default: str = "5"):
-        super().__init__(parent)
-        self.setWindowTitle("Nueva calibración")
-        self.setFixedSize(360, 170)
-        self.setStyleSheet("QDialog { background: #f0f0f0; } QLabel { color: #333; }")
-
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(20, 16, 20, 12)
-        lay.setSpacing(10)
-
-        info = QLabel("Las calibraciones se usan para corregir las lecturas:\n"
-                      "• Blanco: referencia 100% (estándar reflectante)\n"
-                      "• Oscuro: referencia 0% (sensor tapado)")
-        info.setStyleSheet("color: #555; font-size: 11px;")
-        lay.addWidget(info)
-
-        form = QFormLayout()
-        form.setSpacing(8)
-        self.combo_tipo = QComboBox()
-        self.combo_tipo.addItems(["Blanco (referencia 100%)", "Oscuro (referencia 0%)"])
-        self.combo_tipo.setStyleSheet(
-            "QComboBox { background: white; border: 1px solid #ccc; "
-            "border-radius: 3px; padding: 4px 6px; font-size: 12px; }"
-        )
-        form.addRow("Tipo:", self.combo_tipo)
-
-        self.input_dur = QLineEdit(duracion_default)
-        self.input_dur.setStyleSheet(
-            "QLineEdit { background: white; border: 1px solid #ccc; "
-            "border-radius: 3px; padding: 5px 8px; font-size: 12px; }"
-        )
-        form.addRow("Duración (s):", self.input_dur)
-        lay.addLayout(form)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Iniciar calibración")
-        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
-        lay.addWidget(buttons)
-
-    def tipo(self) -> str:
-        return CAL_BLANCO if self.combo_tipo.currentIndex() == 0 else CAL_OSCURO
-
-    def duracion(self) -> int:
-        t = self.input_dur.text().strip()
-        return int(t) if t.isdigit() else 5
-    
-class SerialWorker(QThread):
-    data_received  = pyqtSignal(list)
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self, reader: SerialReader):
-        super().__init__()
-        self.reader   = reader
-        self._running = False
-
-    def run(self):
-        self._running = True
-        while self._running:
-            data = self.reader.read_data()
-            if data and len(data) == 18:
-                self.data_received.emit(data)
-            self.msleep(50)
-
-    def stop(self):
-        self._running = False
-        self.wait(2000)
-
-
-if MATPLOTLIB_AVAILABLE:
-    class SpectralCanvas(FigureCanvas):
-        def __init__(self):
-            self.fig = Figure(figsize=(6, 3.5), facecolor="#f8f8f8")
-            super().__init__(self.fig)
-            self.ax = self.fig.add_subplot(111)
-            self._setup_axes()
-
-        def _setup_axes(self):
-            ax = self.ax
-            ax.set_facecolor("#f8f8f8")
-            for sp in ['top', 'right']:
-                ax.spines[sp].set_visible(False)
-            ax.tick_params(labelsize=7)
-            ax.set_xlabel('Longitud de onda (nm)', fontsize=9)
-            ax.set_ylabel('Intensidad', fontsize=9)
-            ax.set_xticks(WAVELENGTHS)
-            ax.set_xticklabels([str(w) for w in WAVELENGTHS], rotation=45, ha='right')
-            ax.set_xlim(390, 960)
-            ax.set_ylim(0, 1)
-            self.fig.tight_layout(pad=1.5)
-
-        def update_data(self, values: list):
-            self.ax.clear()
-            self._setup_axes()
-
-            safe = []
-            for v in values:
-                try:
-                    fv = float(v)
-                    if fv != fv or fv in (float('inf'), float('-inf')):
-                        fv = 0.0
-                    safe.append(fv)
-                except (TypeError, ValueError):
-                    safe.append(0.0)
-
-            if len(safe) != len(WAVELENGTHS):
-                self.draw()
-                return
-
-            self.ax.bar(WAVELENGTHS, safe, width=18,
-                        color='#3a7ebf', alpha=0.8, zorder=3)
-
-            peak = max(safe) if safe else 0.0
-            if peak <= 0:
-                ymax = 1.0
-            elif peak <= 1.5:
-                ymax = max(peak * 1.15, 0.1)
-            else:                             
-                ymax = peak * 1.15
-            self.ax.set_ylim(0, ymax)
-
-            self.fig.tight_layout(pad=1.5)
-            self.draw()
-
-        def clear_plot(self):
-            self.ax.clear()
-            self._setup_axes()
-            self.draw()
-
-else:
-    class SpectralCanvas(QWidget):
-        def __init__(self):
-            super().__init__()
-            lay = QVBoxLayout(self)
-            lbl = QLabel("matplotlib no disponible\npip install matplotlib")
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lay.addWidget(lbl)
-
-        def update_data(self, values: list): pass
-        def clear_plot(self):               pass
+from .dialogs import NombreAnalisisDialog, CalibracionDialog
+from .workers import SerialWorker
+from .widgets import SpectralCanvas
 
 
 class SpectroControlUI(QMainWindow):
@@ -273,8 +59,7 @@ class SpectroControlUI(QMainWindow):
         self._modo_captura: str = "analisis"
         self._cal_tipo_pendiente: str = ""
         self._aplicar_calibracion: bool = True
-        self._capturas_manuales: list = []  
-
+        self._capturas_manuales: list = []
 
         self.setStyleSheet("QMainWindow, QWidget { background-color: #f0f0f0; color: #222; }")
         self._init_ui()
@@ -298,10 +83,12 @@ class SpectroControlUI(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.addWidget(self._build_live_page())
         self.stack.addWidget(self._build_history_page())
+        self.stack.addWidget(self._build_medidas_page())
 
         rl.addWidget(self.stack)
         rl.addWidget(self._build_bottom_bar())
         root.addWidget(right)
+
     def _load_model(self):
         if not TF_AVAILABLE:
             return None
@@ -312,24 +99,20 @@ class SpectroControlUI(QMainWindow):
             return tf.keras.models.load_model(str(keras_files[0]))
         except Exception:
             return None
-        
+
     def _run_inference(self, norm_vector: list) -> tuple:
-        """
-        Devuelve (clase_miel: str, probabilidades: list[float]).
-        """
         if self._model is None:
             return "Sin modelo", [0.0]
- 
+
         x     = np.array(norm_vector, dtype=np.float32).reshape(1, -1)
         probs = self._model.predict(x, verbose=0)[0].tolist()
         idx   = int(np.argmax(probs))
- 
-        # Intentar leer nombres de clase desde metadatos del modelo
+
         try:
             clases = self._model.output_names
         except AttributeError:
             clases = [f"Clase_{i}" for i in range(len(probs))]
- 
+
         clase = clases[idx] if idx < len(clases) else f"Clase_{idx}"
         return clase, [round(p, 6) for p in probs]
 
@@ -346,7 +129,7 @@ class SpectroControlUI(QMainWindow):
         lay.addWidget(title)
 
         self._nav_btns = []
-        nav_labels = ["Captura en vivo", "Historial"]
+        nav_labels = ["Captura en vivo", "Historial", "Medidas"]
         for i, lbl in enumerate(nav_labels):
             btn = QPushButton(lbl)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -359,7 +142,6 @@ class SpectroControlUI(QMainWindow):
 
         lay.addSpacing(20)
 
-        # Puerto serie
         lay.addWidget(self._section_label("Puerto serie"))
         port_row = QHBoxLayout()
         self.combo_port = QComboBox()
@@ -401,8 +183,8 @@ class SpectroControlUI(QMainWindow):
 
         lay.addStretch()
 
-        model_ok   = self._model is not None
-        lbl_model  = QLabel("● Modelo cargado" if model_ok else "○ Sin modelo")
+        model_ok  = self._model is not None
+        lbl_model = QLabel("● Modelo cargado" if model_ok else "○ Sin modelo")
         lbl_model.setStyleSheet(
             f"color: {'#5a5' if model_ok else '#a55'}; font-size: 10px; padding: 2px 0;"
         )
@@ -449,13 +231,13 @@ class SpectroControlUI(QMainWindow):
         lay.setSpacing(6)
 
         lay.addWidget(self._section_label("Parámetros del instrumento", dark=False))
-        
+
         rows = [
             ("Canales",            "18  (410–940 nm)"),
             ("Ciclos integración", "100"),
             ("Ganancia",           "x16"),
-            ("Modo",              "Continuo" ),
-            ("Duración",              "15" ),
+            ("Modo",               "Continuo"),
+            ("Duración",           "15"),
         ]
         grid = QGridLayout()
         grid.setSpacing(4)
@@ -473,8 +255,7 @@ class SpectroControlUI(QMainWindow):
                 v = QLabel(val)
                 v.setStyleSheet("color: #222; font-size: 11px;")
                 v.setAlignment(Qt.AlignmentFlag.AlignRight)
-
-                grid.addWidget(v,   r, 1)
+                grid.addWidget(v, r, 1)
         lay.addLayout(grid)
         return frame
 
@@ -541,8 +322,6 @@ class SpectroControlUI(QMainWindow):
         lbl2.setStyleSheet("color: #888; margin-top: 8px;")
         lay.addWidget(lbl2)
         lay.addWidget(self.getData())
-        
-        
         return page
 
     def _build_bottom_bar(self) -> QFrame:
@@ -634,7 +413,7 @@ class SpectroControlUI(QMainWindow):
         lay.addWidget(self.btn_save_csv)
         lay.addWidget(self.btn_save_manual)
         return bar
-    
+
     def _build_calibration_panel(self) -> QFrame:
         frame = QFrame()
         frame.setStyleSheet("QFrame { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }")
@@ -704,7 +483,7 @@ class SpectroControlUI(QMainWindow):
             return base + "background: #ddd; color: #555; border: 1px solid #bbb;"
         if kind == "toggle_on":
             return base + "background: #2980b9; color: white;"
-        if kind == "warning":                                        
+        if kind == "warning":
             return base + "background: #e67e22; color: white;"
         return base + "background: #e0e0e0; color: #333; border: 1px solid #ccc;"
 
@@ -805,7 +584,6 @@ class SpectroControlUI(QMainWindow):
         else:
             QMessageBox.warning(self, "Error LED", "No se pudo cambiar el modo de los LEDs.")
 
-    
     def _request_scan(self):
         if not self._connected or self._scanning:
             return
@@ -815,15 +593,15 @@ class SpectroControlUI(QMainWindow):
         self._nombre_analisis = dlg.nombre()
         self._modo_captura = "analisis"
         self._start_acquisition()
- 
+
     def _request_calibracion(self, tipo: str):
         if not self._connected or self._scanning:
             return
         modo = self._get_modo_medicion()
         nombre = "blanco" if tipo == CAL_BLANCO else "oscuro"
         detalle = ("Coloca el estándar reflectante (o medio transparente, según modo)."
-                if tipo == CAL_BLANCO else
-                "Tapa el sensor o apaga la luz para registrar el ruido de fondo.")
+                   if tipo == CAL_BLANCO else
+                   "Tapa el sensor o apaga la luz para registrar el ruido de fondo.")
         if QMessageBox.question(
             self, f"Calibración: {nombre} ({modo})",
             f"Vas a capturar la referencia de {nombre} para el modo «{modo}».\n\n{detalle}\n\n¿Iniciar?",
@@ -850,7 +628,7 @@ class SpectroControlUI(QMainWindow):
             self._set_status("Calibración fallida: sin datos")
             return
         tipo = self._cal_tipo_pendiente
-        modo = self._get_modo_medicion()      # se calibra en el modo activo
+        modo = self._get_modo_medicion()
         ts   = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         self._set_cal(tipo, modo, mean, ts)
@@ -869,7 +647,7 @@ class SpectroControlUI(QMainWindow):
             self._actualizar_estado_calibracion(CAL_BLANCO)
             self._actualizar_estado_calibracion(CAL_OSCURO)
             return
-        cal = self._get_cal(tipo)               # modo actual
+        cal = self._get_cal(tipo)
         lbl = self.lbl_cal_blanco if tipo == CAL_BLANCO else self.lbl_cal_oscuro
         if cal is None:
             lbl.setText("Sin calibrar")
@@ -933,7 +711,7 @@ class SpectroControlUI(QMainWindow):
             "raw": mean,
             "corregido": corregido,
             "modo_medicion": self._get_modo_medicion(),
-            "calibracion_aplicada": self._cal_disponible_y_activa(), 
+            "calibracion_aplicada": self._cal_disponible_y_activa(),
         })
 
         self.btn_save_manual.setEnabled(True)
@@ -967,10 +745,10 @@ class SpectroControlUI(QMainWindow):
 
         self.btn_start.setEnabled(False)
         self.btn_start.setStyleSheet(self._btn_style("primary", enabled=False))
-        self.btn_calibrar.setEnabled(False)                                       
-        self.btn_calibrar.setStyleSheet(self._btn_style("secondary", enabled=False))  
-        self.btn_manual.setEnabled(False)                                         
-        self.btn_manual.setStyleSheet(self._btn_style("warning", enabled=False)) 
+        self.btn_calibrar.setEnabled(False)
+        self.btn_calibrar.setStyleSheet(self._btn_style("secondary", enabled=False))
+        self.btn_manual.setEnabled(False)
+        self.btn_manual.setStyleSheet(self._btn_style("warning", enabled=False))
         self.btn_stop.setEnabled(True)
         self.btn_stop.setStyleSheet(self._btn_style("danger"))
         self.btn_save_csv.setEnabled(False)
@@ -992,8 +770,8 @@ class SpectroControlUI(QMainWindow):
     def _stop_acquisition(self):
         if not self._scanning:
             return
-        
-        if hasattr(self, '_acq_timer') and  self._acq_timer.isActive():
+
+        if hasattr(self, '_acq_timer') and self._acq_timer.isActive():
             self._acq_timer.stop()
 
         if self.worker:
@@ -1012,10 +790,10 @@ class SpectroControlUI(QMainWindow):
         self.btn_save_csv.setEnabled(has_data)
         self.btn_save_csv.setStyleSheet(self._btn_style("secondary", enabled=has_data))
 
-        self.btn_calibrar.setEnabled(True)                                
-        self.btn_calibrar.setStyleSheet(self._btn_style("secondary"))     
-        self.btn_manual.setEnabled(True)                                  
-        self.btn_manual.setStyleSheet(self._btn_style("warning"))         
+        self.btn_calibrar.setEnabled(True)
+        self.btn_calibrar.setStyleSheet(self._btn_style("secondary"))
+        self.btn_manual.setEnabled(True)
+        self.btn_manual.setStyleSheet(self._btn_style("warning"))
 
         self.diag_scan.setText("En espera")
 
@@ -1039,58 +817,51 @@ class SpectroControlUI(QMainWindow):
         self._modo_captura = "analisis"
 
     def _run_full_analysis(self):
-        """
-        Pipeline completo post-captura:
-          1. Media de lecturas  →  muestras
-          2. Inferencia modelo  →  predicciones
-          3. Registro           →  analisis
-        Todo en una sola transacción SQLite.
-        """
         mean = self._compute_mean()
         if not mean:
             self._set_status("Sin datos para analizar")
             return
- 
+
         peak = max(mean) if max(mean) > 0 else 1.0
         norm = [round(v / peak, 6) for v in mean]
- 
+
         clase, probs = self._run_inference(norm)
- 
+
         try:
             os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
             conn = sqlite3.connect(DB_PATH)
             cur  = conn.cursor()
- 
+
             cur.execute(
-                    "INSERT INTO muestras (espectro_raw, espectro_normalizado, "
-                    "modo_medicion, calibracion_aplicada) VALUES (?, ?, ?, ?)",
-                    (str(mean), str(norm),
-                    self._get_modo_medicion(),
-                    int(self._cal_disponible_y_activa()))
+                "INSERT INTO muestras (espectro_raw, espectro_normalizado, "
+                "modo_medicion, calibracion_aplicada) VALUES (?, ?, ?, ?)",
+                (str(mean), str(norm),
+                 self._get_modo_medicion(),
+                 int(self._cal_disponible_y_activa()))
             )
             id_muestra = cur.lastrowid
- 
+
             cur.execute(
                 "INSERT INTO predicciones (clase_miel, vector_probabilidades) VALUES (?, ?)",
                 (clase, str(probs))
             )
             id_prediccion = cur.lastrowid
- 
+
             ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             cur.execute(
                 "INSERT INTO analisis (nombre_analisis, timestamp, id_muestra, id_prediccion) "
                 "VALUES (?, ?, ?, ?)",
                 (self._nombre_analisis, ts, id_muestra, id_prediccion)
             )
- 
+
             conn.commit()
             conn.close()
- 
+
             n = len(self.captured_data)
             self.lbl_last_save.setText(f"«{self._nombre_analisis}» → {clase}  |  {ts}")
             self._set_status(f"Análisis completado: {clase}  (media de {n} lecturas)")
             self._refresh_history()
- 
+
         except sqlite3.Error as e:
             self._set_status("Error al guardar en DB")
             QMessageBox.critical(self, "Error de base de datos", str(e))
@@ -1129,7 +900,6 @@ class SpectroControlUI(QMainWindow):
             self._set_status("Error al guardar en DB")
             QMessageBox.critical(self, "Error de base de datos", str(e))
 
-    
     def _on_data(self, values: list):
         self.captured_data.append(values)
         n = len(self.captured_data)
@@ -1166,7 +936,7 @@ class SpectroControlUI(QMainWindow):
                 SELECT m.espectro_normalizado, m.modo_medicion, m.calibracion_aplicada,
                        p.clase_miel, p.vector_probabilidades
                 FROM muestras m
-                LEFT JOIN analisis a    ON m.id = a.id_muestra
+                LEFT JOIN analisis a     ON m.id = a.id_muestra
                 LEFT JOIN predicciones p ON a.id_prediccion = p.id
             """)
             for norm, modo, cal_apl, clase, probs in cur.fetchall():
@@ -1227,20 +997,20 @@ class SpectroControlUI(QMainWindow):
                 for cap in self._capturas_manuales:
                     w.writerow(
                         [cap["timestamp"], cap["n_lecturas"], cap["modo_medicion"],
-                        int(cap["calibracion_aplicada"]), "raw"]
+                         int(cap["calibracion_aplicada"]), "raw"]
                         + cap["raw"]
                     )
                     if cap["corregido"] is not None:
                         w.writerow(
                             [cap["timestamp"], cap["n_lecturas"], cap["modo_medicion"],
-                            int(cap["calibracion_aplicada"]), "corregido"]
+                             int(cap["calibracion_aplicada"]), "corregido"]
                             + cap["corregido"]
                         )
             self._set_status(f"Exportadas {len(self._capturas_manuales)} capturas manuales")
             self.lbl_last_save.setText(f"CSV manual {datetime.now().strftime('%H:%M:%S')}")
         except OSError as e:
             QMessageBox.critical(self, "Error al guardar", str(e))
- 
+
     def _compute_mean(self) -> list:
         n = len(self.captured_data)
         if n == 0:
@@ -1251,21 +1021,154 @@ class SpectroControlUI(QMainWindow):
             for ch in range(num_channels)
         ]
         return mean
- 
+
     def _set_status(self, text: str):
         self.lbl_sys_status.setText(text)
+
+    def _build_medidas_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(32, 32, 32, 16)
+        lay.setSpacing(10)
+
+        header = QHBoxLayout()
+        lbl = QLabel("Medidas")
+        lbl.setStyleSheet("font-size: 18px; font-weight: bold;")
+        header.addWidget(lbl)
+        header.addStretch()
+
+        lbl_tipo = QLabel("Mostrar:")
+        lbl_tipo.setStyleSheet("color: #555; font-size: 12px;")
+        header.addWidget(lbl_tipo)
+        self.combo_medidas_tipo = QComboBox()
+        self.combo_medidas_tipo.addItems(["Normalizado", "Raw (sin normalizar)"])
+        self.combo_medidas_tipo.setStyleSheet(
+            "QComboBox { background: white; border: 1px solid #ccc; "
+            "border-radius: 3px; padding: 4px 8px; font-size: 12px; }"
+        )
+        self.combo_medidas_tipo.currentIndexChanged.connect(self._refresh_medidas)
+        header.addWidget(self.combo_medidas_tipo)
+
+        btn_export = QPushButton("Exportar CSV")
+        btn_export.setStyleSheet(self._btn_style("secondary"))
+        btn_export.clicked.connect(self._save_medidas_csv)
+        header.addWidget(btn_export)
+        lay.addLayout(header)
+
+        lbl2 = QLabel("Espectros almacenados en la base de datos.")
+        lbl2.setStyleSheet("color: #888; margin-bottom: 8px;")
+        lay.addWidget(lbl2)
+
+        lay.addWidget(self._get_medidas_table())
+        return page
+
+    def _get_medidas_table(self) -> QTableWidget:
+        usar_raw = (self.combo_medidas_tipo.currentIndex() == 1
+                    if hasattr(self, 'combo_medidas_tipo') else False)
+        col_espectro = "espectro_raw" if usar_raw else "espectro_normalizado"
+
+        cabeceras = ["ID", "Modo", "Calibrado"] + CSV_HEADER + ["Notas"]
+        table = QTableWidget()
+        table.setColumnCount(len(cabeceras))
+        table.setHorizontalHeaderLabels(cabeceras)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        table.horizontalHeader().setStretchLastSection(True)
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+            cur.execute(
+                f"SELECT id, modo_medicion, calibracion_aplicada, "
+                f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
+            )
+            rows = cur.fetchall()
+            conn.close()
+        except sqlite3.Error:
+            rows = []
+
+        table.setRowCount(len(rows))
+        for i, (mid, modo, cal, espectro_str, notas) in enumerate(rows):
+            try:
+                espectro = ast.literal_eval(espectro_str)
+            except (ValueError, SyntaxError):
+                espectro = []
+
+            valores_fila = [
+                str(mid),
+                modo or "—",
+                "Sí" if cal else "No",
+            ] + [str(round(v, 4)) if j < len(espectro) else "—"
+                 for j, v in enumerate(espectro)] + [notas or ""]
+
+            for j, val in enumerate(valores_fila):
+                table.setItem(i, j, QTableWidgetItem(val))
+
+        return table
+
+    def _refresh_medidas(self):
+        medidas_page = self.stack.widget(2)
+        layout = medidas_page.layout()
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item and isinstance(item.widget(), QTableWidget):
+                old = item.widget()
+                layout.removeWidget(old)
+                old.deleteLater()
+                break
+        layout.addWidget(self._get_medidas_table())
+
+    def _save_medidas_csv(self):
+        usar_raw = self.combo_medidas_tipo.currentIndex() == 1
+        col_espectro = "espectro_raw" if usar_raw else "espectro_normalizado"
+        tipo_label   = "raw" if usar_raw else "normalizado"
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+            cur.execute(
+                f"SELECT id, modo_medicion, calibracion_aplicada, "
+                f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
+            )
+            rows = cur.fetchall()
+            conn.close()
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Error de base de datos", str(e))
+            return
+
+        if not rows:
+            QMessageBox.information(self, "Sin datos", "No hay medidas que exportar.")
+            return
+
+        default = f"medidas_{tipo_label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar medidas", default, "CSV Files (*.csv)")
+        if not path:
+            return
+
+        try:
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["id", "modo_medicion", "calibracion_aplicada"] + CSV_HEADER + ["notas"])
+                for mid, modo, cal, espectro_str, notas in rows:
+                    try:
+                        espectro = ast.literal_eval(espectro_str)
+                    except (ValueError, SyntaxError):
+                        espectro = [""] * len(CSV_HEADER)
+                    writer.writerow([mid, modo or "", int(cal or 0)] + espectro + [notas or ""])
+            self._set_status(f"Medidas exportadas ({len(rows)} filas, {tipo_label})")
+        except OSError as e:
+            QMessageBox.critical(self, "Error al guardar", str(e))
 
     def closeEvent(self, event):
         self._stop_acquisition()
         if self.reader:
             self.reader.disconnect()
-        self._capturas_manuales.clear()                  
+        self._capturas_manuales.clear()
         self._calibraciones = {
             MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
             MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
-        }   
+        }
         event.accept()
-        
+
     def getData(self):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute('''
@@ -1300,7 +1203,6 @@ class SpectroControlUI(QMainWindow):
         history_page = self.stack.widget(1)
         layout = history_page.layout()
 
-        # Eliminar la tabla antigua
         for i in range(layout.count()):
             item = layout.itemAt(i)
             if item and isinstance(item.widget(), QTableWidget):
@@ -1370,7 +1272,7 @@ class SpectroControlUI(QMainWindow):
         modo = self._get_modo_medicion()
         return (self._get_cal(CAL_BLANCO, modo) is not None
                 and self._get_cal(CAL_OSCURO, modo) is not None)
-    
+
     def _get_cal(self, tipo: str, modo: str = None):
         modo = modo or self._get_modo_medicion()
         return self._calibraciones.get(modo, {}).get(tipo)
@@ -1400,9 +1302,3 @@ class SpectroControlUI(QMainWindow):
             denom = b - o
             out.append(0.0 if denom <= 0 else max(0.0, min((r - o) / denom, 1.5)))
         return out
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = SpectroControlUI()
-    window.show()
-    sys.exit(app.exec())
