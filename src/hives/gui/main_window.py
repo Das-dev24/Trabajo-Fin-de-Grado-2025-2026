@@ -28,6 +28,16 @@ from hives.gui.workers import SerialWorker
 from hives.inference.model import load_model, run_inference
 
 
+class NumericTableItem(QTableWidgetItem):
+    """QTableWidgetItem que ordena numéricamente (no lexicográficamente)."""
+
+    def __lt__(self, other: QTableWidgetItem) -> bool:
+        try:
+            return int(self.text()) < int(other.text())
+        except ValueError:
+            return super().__lt__(other)
+
+
 class SpectroControlUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -295,13 +305,28 @@ class SpectroControlUI(QMainWindow):
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.setContentsMargins(32, 32, 32, 32)
+
         lbl = QLabel("Historial de datos")
         lbl.setStyleSheet("font-size: 18px; font-weight: bold;")
         lay.addWidget(lbl)
+
         lbl2 = QLabel("Análisis guardados en la base de datos.\n")
         lbl2.setStyleSheet("color: #888; margin-top: 8px;")
         lay.addWidget(lbl2)
-        lay.addWidget(self.getData())
+
+        toolbar = QHBoxLayout()
+        toolbar.addStretch()
+        self.btn_pdf = QPushButton("Generar informe PDF")
+        self.btn_pdf.setEnabled(False)
+        self.btn_pdf.setStyleSheet(self._btn_style("secondary", enabled=False))
+        self.btn_pdf.setToolTip("Selecciona una fila para generar el informe")
+        self.btn_pdf.clicked.connect(self._generate_pdf_report)
+        toolbar.addWidget(self.btn_pdf)
+        lay.addLayout(toolbar)
+
+        self._history_table = self.getData()
+        self._history_table.itemSelectionChanged.connect(self._on_history_selection_changed)
+        lay.addWidget(self._history_table)
         return page
 
     def _build_bottom_bar(self) -> QFrame:
@@ -999,9 +1024,12 @@ class SpectroControlUI(QMainWindow):
             for j, valor in enumerate(fila):
                 if j == 4:
                     valor = "Sí" if valor else "No"
-                item = QTableWidgetItem(str(valor) if valor is not None else "—")
+                text = str(valor) if valor is not None else "—"
+                item = NumericTableItem(text) if j == 0 else QTableWidgetItem(text)
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 table.setItem(i, j, item)
 
+        table.setSortingEnabled(True)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         return table
 
@@ -1009,15 +1037,88 @@ class SpectroControlUI(QMainWindow):
         history_page = self.stack.widget(1)
         layout = history_page.layout()
 
-        for i in range(layout.count()):
-            item = layout.itemAt(i)
-            if item and isinstance(item.widget(), QTableWidget):
-                old_table = item.widget()
-                layout.removeWidget(old_table)
-                old_table.deleteLater()
-                break
+        self._history_table.itemSelectionChanged.disconnect()
+        layout.removeWidget(self._history_table)
+        self._history_table.deleteLater()
 
-        layout.addWidget(self.getData())
+        self._history_table = self.getData()
+        self._history_table.itemSelectionChanged.connect(self._on_history_selection_changed)
+        layout.addWidget(self._history_table)
+
+        self.btn_pdf.setEnabled(False)
+        self.btn_pdf.setStyleSheet(self._btn_style("secondary", enabled=False))
+
+    def _on_history_selection_changed(self):
+        enabled = bool(self._history_table.selectedItems())
+        self.btn_pdf.setEnabled(enabled)
+        self.btn_pdf.setStyleSheet(self._btn_style("secondary", enabled=enabled))
+
+    def _generate_pdf_report(self):
+        current_row = self._history_table.currentRow()
+        if current_row < 0:
+            return
+
+        analisis_id = int(self._history_table.item(current_row, 0).text())
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute('''
+                SELECT a.nombre_analisis, a.timestamp,
+                       m.modo_medicion, m.calibracion_aplicada,
+                       m.espectro_normalizado,
+                       p.clase_miel, p.vector_probabilidades
+                FROM analisis a
+                LEFT JOIN muestras     m ON a.id_muestra   = m.id
+                LEFT JOIN predicciones p ON a.id_prediccion = p.id
+                WHERE a.id = ?
+            ''', (analisis_id,))
+            row = cur.fetchone()
+            conn.close()
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Error de base de datos", str(e))
+            return
+
+        if row is None:
+            QMessageBox.warning(self, "Sin datos", "No se encontró el análisis en la base de datos.")
+            return
+
+        nombre, timestamp, modo, calibrado, espectro_str, clase, probs_str = row
+
+        try:
+            espectro = ast.literal_eval(espectro_str) if espectro_str else []
+            probs    = ast.literal_eval(probs_str)    if probs_str    else []
+        except (ValueError, SyntaxError):
+            espectro = []
+            probs    = []
+
+        confianza = max(probs) if probs else 0.0
+
+        default_name = f"informe_{analisis_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Guardar informe PDF", default_name, "PDF Files (*.pdf)"
+        )
+        if not path:
+            return
+
+        try:
+            from hives.reports.pdf_report import generate_pdf
+            generate_pdf(
+                path=path,
+                analisis_id=analisis_id,
+                nombre=nombre or "—",
+                timestamp=timestamp or "—",
+                modo=modo or "—",
+                calibrado=bool(calibrado),
+                espectro=espectro,
+                clase=clase or "—",
+                confianza=confianza,
+                probabilidades=probs,
+            )
+            self._set_status(f"Informe PDF generado: {path}")
+            self.lbl_last_save.setText(f"PDF guardado {datetime.now().strftime('%H:%M:%S')}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error al generar PDF", str(e))
 
     # ------------------------------------------------------------------ #
     #  Calibración                                                         #
