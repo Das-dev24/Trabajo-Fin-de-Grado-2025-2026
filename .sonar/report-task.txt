@@ -1,0 +1,6 @@
+projectKey=TFG
+serverUrl=http://192.168.0.43:9000
+serverVersion=26.5.0.122743
+dashboardUrl=http://192.168.0.43:9000/dashboard?id=TFG
+ceTaskId=ef886b34-ac49-4bd3-a0d2-40c21332cbce
+ceTaskUrl=http://192.168.0.43:9000/api/ce/task?id=ef886b34-ac49-4bd3-a0d2-40c21332cbce
