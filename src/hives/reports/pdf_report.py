@@ -25,9 +25,7 @@ HONEY_CLASSES = [
     "ManukaUMF5", "MultiFloral", "Rewarewa", "Sugar",
 ]
 
-# Nombre lógico de la fuente usada en todo el PDF.
-# Se carga como TTF Unicode si Arial está disponible en el sistema;
-# en caso contrario se usa la fuente core Helvetica (latin-1).
+# Fuente del informe
 _FONT_NAME = "Helvetica"
 
 
