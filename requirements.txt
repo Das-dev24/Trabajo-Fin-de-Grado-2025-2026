@@ -1,0 +1,12 @@
+# Runtime
+PyQt6>=6.4
+pyserial>=3.5
+tensorflow>=2.10
+numpy>=1.23
+matplotlib>=3.6
+fpdf2>=2.7
+
+# Tests
+pytest>=7.0
+pytest-qt>=4.2
+pytest-mock>=3.10
