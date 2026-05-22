@@ -9,7 +9,8 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QGridLayout, QComboBox,
     QStackedWidget, QFileDialog, QMessageBox, QSizePolicy, QTableWidget,
-    QTableWidgetItem, QHeaderView, QLineEdit, QDialog, QCheckBox, QMenu,
+    QTableWidgetItem, QHeaderView, QAbstractItemView, QLineEdit, QDialog,
+    QCheckBox, QMenu,
 )
 from PyQt6.QtCore import Qt, QTimer
 
@@ -77,6 +78,7 @@ class SpectroControlUI(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.addWidget(self._build_live_page())
         self.stack.addWidget(self._build_history_page())
+        self.stack.addWidget(self._build_medidas_page())
 
         rl.addWidget(self.stack)
         rl.addWidget(self._build_bottom_bar())
@@ -106,7 +108,7 @@ class SpectroControlUI(QMainWindow):
         lay.addWidget(title)
 
         self._nav_btns = []
-        nav_labels = ["Captura en vivo", "Historial"]
+        nav_labels = ["Captura en vivo", "Historial", "Medidas"]
         for i, lbl in enumerate(nav_labels):
             btn = QPushButton(lbl)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -294,14 +296,80 @@ class SpectroControlUI(QMainWindow):
     def _build_history_page(self) -> QWidget:
         page = QWidget()
         lay = QVBoxLayout(page)
-        lay.setContentsMargins(32, 32, 32, 32)
+        lay.setContentsMargins(24, 20, 24, 16)
+        lay.setSpacing(8)
+
         lbl = QLabel("Historial de datos")
         lbl.setStyleSheet("font-size: 18px; font-weight: bold;")
         lay.addWidget(lbl)
-        lbl2 = QLabel("Análisis guardados en la base de datos.\n")
-        lbl2.setStyleSheet("color: #888; margin-top: 8px;")
-        lay.addWidget(lbl2)
-        lay.addWidget(self.getData())
+
+        # ── Barra de filtros ───────────────────────────────────────────────
+        filter_frame = QFrame()
+        filter_frame.setStyleSheet(
+            "QFrame { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }"
+        )
+        fl = QHBoxLayout(filter_frame)
+        fl.setContentsMargins(10, 8, 10, 8)
+        fl.setSpacing(10)
+
+        _combo_style = (
+            "QComboBox { background: white; border: 1px solid #ccc; border-radius: 3px; "
+            "padding: 4px 6px; font-size: 12px; min-width: 110px; }"
+            "QComboBox QAbstractItemView { background: white; }"
+        )
+        _line_style = (
+            "QLineEdit { border: 1px solid #ccc; border-radius: 3px; padding: 4px 8px; "
+            "font-size: 12px; background: white; }"
+        )
+        _lbl_style = "color: #666; font-size: 11px; font-weight: bold; background: transparent; border: none;"
+
+        lbl_b = QLabel("Buscar:")
+        lbl_b.setStyleSheet(_lbl_style)
+        fl.addWidget(lbl_b)
+        self.history_search = QLineEdit()
+        self.history_search.setPlaceholderText("Nombre o clase…")
+        self.history_search.setClearButtonEnabled(True)
+        self.history_search.setFixedHeight(28)
+        self.history_search.setStyleSheet(_line_style)
+        self.history_search.textChanged.connect(self._apply_filters)
+        fl.addWidget(self.history_search, 1)
+
+        lbl_m = QLabel("Modo:")
+        lbl_m.setStyleSheet(_lbl_style)
+        fl.addWidget(lbl_m)
+        self.filter_modo = QComboBox()
+        self.filter_modo.addItems(["Todos", "Reflectancia", "Transmitancia"])
+        self.filter_modo.setStyleSheet(_combo_style)
+        self.filter_modo.currentIndexChanged.connect(self._apply_filters)
+        fl.addWidget(self.filter_modo)
+
+        lbl_c = QLabel("Calibrado:")
+        lbl_c.setStyleSheet(_lbl_style)
+        fl.addWidget(lbl_c)
+        self.filter_cal = QComboBox()
+        self.filter_cal.addItems(["Todos", "Sí", "No"])
+        self.filter_cal.setStyleSheet(_combo_style)
+        self.filter_cal.currentIndexChanged.connect(self._apply_filters)
+        fl.addWidget(self.filter_cal)
+
+        lbl_cl = QLabel("Clase:")
+        lbl_cl.setStyleSheet(_lbl_style)
+        fl.addWidget(lbl_cl)
+        self.filter_clase = QComboBox()
+        self.filter_clase.addItem("Todas")
+        self.filter_clase.setStyleSheet(_combo_style)
+        self.filter_clase.currentIndexChanged.connect(self._apply_filters)
+        fl.addWidget(self.filter_clase)
+
+        lay.addWidget(filter_frame)
+
+        # ── Tabla ──────────────────────────────────────────────────────────
+        self._history_table = self._build_history_table()
+        lay.addWidget(self._history_table)
+
+        # ── Poblar combo de clases con valores de la BD ────────────────────
+        self._populate_clase_filter()
+
         return page
 
     def _build_bottom_bar(self) -> QFrame:
@@ -975,7 +1043,10 @@ class SpectroControlUI(QMainWindow):
         except OSError as e:
             QMessageBox.critical(self, "Error al guardar", str(e))
 
-    def getData(self):
+    # ── Construcción y recarga de la tabla de historial ──────────────────── #
+
+    def _build_history_table(self) -> QTableWidget:
+        """Crea la QTableWidget con los datos de la BD y un botón PDF por fila."""
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute('''
             SELECT a.id, a.nombre_analisis, a.timestamp,
@@ -986,10 +1057,10 @@ class SpectroControlUI(QMainWindow):
             LEFT JOIN predicciones p ON a.id_prediccion = p.id
             ORDER BY a.timestamp DESC
         ''')
-        datos     = cursor.fetchall()
-        cabeceras = ["ID", "Nombre", "Timestamp", "Modo", "Calibrado", "Clase"]
+        datos = cursor.fetchall()
         conn.close()
 
+        cabeceras = ["ID", "Nombre", "Fecha", "Modo", "Calibrado", "Clase", ""]
         table = QTableWidget()
         table.setColumnCount(len(cabeceras))
         table.setRowCount(len(datos))
@@ -999,25 +1070,209 @@ class SpectroControlUI(QMainWindow):
             for j, valor in enumerate(fila):
                 if j == 4:
                     valor = "Sí" if valor else "No"
-                item = QTableWidgetItem(str(valor) if valor is not None else "—")
+                text = str(valor) if valor is not None else "—"
+                item = QTableWidgetItem(text)
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 table.setItem(i, j, item)
 
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+            # Botón PDF en la última columna
+            btn = QPushButton("PDF")
+            btn.setFixedHeight(26)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(
+                "QPushButton { background: #3a7ebf; color: white; border: none; "
+                "border-radius: 3px; padding: 2px 12px; font-size: 11px; font-weight: bold; }"
+                "QPushButton:hover { background: #2e6ea3; }"
+                "QPushButton:pressed { background: #245d8c; }"
+            )
+            analisis_id = int(fila[0])
+            btn.clicked.connect(lambda _, aid=analisis_id: self._generate_single_pdf(aid))
+            table.setCellWidget(i, len(cabeceras) - 1, btn)
+
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setAlternatingRowColors(True)
+        table.setStyleSheet(
+            "QTableWidget { gridline-color: #e0e0e0; font-size: 12px; }"
+            "QTableWidget::item:selected { background: #cde4f7; color: #222; }"
+            "QTableWidget { alternate-background-color: #f7f9fc; }"
+        )
+
+        hdr = table.horizontalHeader()
+        hdr.setHighlightSections(False)
+        hdr.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        # Columna del botón: ancho fijo
+        hdr.setSectionResizeMode(len(cabeceras) - 1, QHeaderView.ResizeMode.Fixed)
+        table.setColumnWidth(len(cabeceras) - 1, 60)
+        hdr.setStyleSheet(
+            "QHeaderView::section { background: #e8eef5; font-weight: bold; "
+            "padding: 6px 4px; border: none; border-bottom: 1px solid #ccc; }"
+        )
+
+        table.verticalHeader().setVisible(False)
         return table
 
     def _refresh_history(self):
+        """Reconstruye la tabla tras insertar un nuevo análisis."""
         history_page = self.stack.widget(1)
         layout = history_page.layout()
 
-        for i in range(layout.count()):
-            item = layout.itemAt(i)
-            if item and isinstance(item.widget(), QTableWidget):
-                old_table = item.widget()
-                layout.removeWidget(old_table)
-                old_table.deleteLater()
-                break
+        layout.removeWidget(self._history_table)
+        self._history_table.deleteLater()
 
-        layout.addWidget(self.getData())
+        self._history_table = self._build_history_table()
+        layout.addWidget(self._history_table)
+
+        self._populate_clase_filter()
+        self._apply_filters()
+
+    def _populate_clase_filter(self):
+        """Rellena el combo de clases con los valores únicos de la BD."""
+        current = self.filter_clase.currentText()
+        self.filter_clase.blockSignals(True)
+        self.filter_clase.clear()
+        self.filter_clase.addItem("Todas")
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT clase_miel FROM predicciones WHERE clase_miel IS NOT NULL ORDER BY clase_miel")
+            for (cls,) in cur.fetchall():
+                self.filter_clase.addItem(cls)
+            conn.close()
+        except sqlite3.Error:
+            pass
+        # Restaurar selección previa si existe
+        idx = self.filter_clase.findText(current)
+        if idx >= 0:
+            self.filter_clase.setCurrentIndex(idx)
+        self.filter_clase.blockSignals(False)
+
+    # ── Filtros ────────────────────────────────────────────────────────────── #
+
+    def _apply_filters(self, _=None):
+        """Aplica todos los filtros activos sobre la tabla."""
+        text_filter = self.history_search.text().strip().lower()
+        modo_filter = self.filter_modo.currentText().lower()
+        cal_filter  = self.filter_cal.currentText()
+        clase_filter = self.filter_clase.currentText()
+
+        # Columnas: 0=ID, 1=Nombre, 2=Fecha, 3=Modo, 4=Calibrado, 5=Clase
+        for row in range(self._history_table.rowCount()):
+            visible = True
+
+            # Filtro de texto libre (busca en nombre y clase)
+            if text_filter:
+                nombre = (self._history_table.item(row, 1).text().lower()
+                          if self._history_table.item(row, 1) else "")
+                clase  = (self._history_table.item(row, 5).text().lower()
+                          if self._history_table.item(row, 5) else "")
+                if text_filter not in nombre and text_filter not in clase:
+                    visible = False
+
+            # Filtro por modo
+            if visible and modo_filter != "todos":
+                modo_cell = (self._history_table.item(row, 3).text().lower()
+                             if self._history_table.item(row, 3) else "")
+                if modo_cell != modo_filter:
+                    visible = False
+
+            # Filtro por calibrado
+            if visible and cal_filter != "Todos":
+                cal_cell = (self._history_table.item(row, 4).text()
+                            if self._history_table.item(row, 4) else "")
+                if cal_cell != cal_filter:
+                    visible = False
+
+            # Filtro por clase
+            if visible and clase_filter != "Todas":
+                clase_cell = (self._history_table.item(row, 5).text()
+                              if self._history_table.item(row, 5) else "")
+                if clase_cell != clase_filter:
+                    visible = False
+
+            self._history_table.setRowHidden(row, not visible)
+
+    # ── Generación de PDF individual (botón por fila) ─────────────────────── #
+
+    def _fetch_analisis_data(self, analisis_id: int) -> dict | None:
+        """Consulta la BD y devuelve un dict con los datos del análisis."""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute('''
+                SELECT a.nombre_analisis, a.timestamp,
+                       m.modo_medicion, m.calibracion_aplicada,
+                       m.espectro_normalizado,
+                       p.clase_miel, p.vector_probabilidades
+                FROM analisis a
+                LEFT JOIN muestras     m ON a.id_muestra   = m.id
+                LEFT JOIN predicciones p ON a.id_prediccion = p.id
+                WHERE a.id = ?
+            ''', (analisis_id,))
+            row = cur.fetchone()
+            conn.close()
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Error de base de datos", str(e))
+            return None
+
+        if row is None:
+            return None
+
+        nombre, timestamp, modo, calibrado, espectro_str, clase, probs_str = row
+        try:
+            espectro = ast.literal_eval(espectro_str) if espectro_str else []
+        except (ValueError, SyntaxError):
+            espectro = []
+        try:
+            probs = ast.literal_eval(probs_str) if probs_str else []
+        except (ValueError, SyntaxError):
+            probs = []
+
+        return {
+            "id":        analisis_id,
+            "nombre":    nombre or "—",
+            "timestamp": timestamp or "—",
+            "modo":      modo or "—",
+            "calibrado": bool(calibrado),
+            "espectro":  espectro,
+            "clase":     clase or "—",
+            "probs":     probs,
+            "confianza": max(probs) if probs else 0.0,
+        }
+
+    def _generate_single_pdf(self, analisis_id: int):
+        """Genera un informe PDF para un análisis concreto."""
+        data = self._fetch_analisis_data(analisis_id)
+        if data is None:
+            QMessageBox.warning(self, "Sin datos",
+                                "No se encontró el análisis en la base de datos.")
+            return
+
+        default_name = f"informe_{analisis_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Guardar informe PDF", default_name, "PDF Files (*.pdf)"
+        )
+        if not path:
+            return
+
+        try:
+            from hives.reports.pdf_report import generate_pdf
+            generate_pdf(
+                path=path,
+                analisis_id=data["id"],
+                nombre=data["nombre"],
+                timestamp=data["timestamp"],
+                modo=data["modo"],
+                calibrado=data["calibrado"],
+                espectro=data["espectro"],
+                clase=data["clase"],
+                confianza=data["confianza"],
+                probabilidades=data["probs"],
+            )
+            self._set_status(f"Informe PDF generado: {path}")
+            self.lbl_last_save.setText(f"PDF guardado {datetime.now().strftime('%H:%M:%S')}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error al generar PDF", str(e))
 
     # ------------------------------------------------------------------ #
     #  Calibración                                                         #
@@ -1173,6 +1428,146 @@ class SpectroControlUI(QMainWindow):
             denom = b - o
             out.append(0.0 if denom <= 0 else max(0.0, min((r - o) / denom, 1.5)))
         return out
+
+    # ------------------------------------------------------------------ #
+    #  Página de medidas (espectros de la tabla muestras)                   #
+    # ------------------------------------------------------------------ #
+
+    def _build_medidas_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(32, 32, 32, 16)
+        lay.setSpacing(10)
+
+        header = QHBoxLayout()
+        lbl = QLabel("Medidas")
+        lbl.setStyleSheet("font-size: 18px; font-weight: bold;")
+        header.addWidget(lbl)
+        header.addStretch()
+
+        lbl_tipo = QLabel("Mostrar:")
+        lbl_tipo.setStyleSheet("color: #555; font-size: 12px;")
+        header.addWidget(lbl_tipo)
+        self.combo_medidas_tipo = QComboBox()
+        self.combo_medidas_tipo.addItems(["Normalizado", "Raw (sin normalizar)"])
+        self.combo_medidas_tipo.setStyleSheet(
+            "QComboBox { background: white; border: 1px solid #ccc; "
+            "border-radius: 3px; padding: 4px 8px; font-size: 12px; }"
+        )
+        self.combo_medidas_tipo.currentIndexChanged.connect(self._refresh_medidas)
+        header.addWidget(self.combo_medidas_tipo)
+
+        btn_export = QPushButton("Exportar CSV")
+        btn_export.setStyleSheet(self._btn_style("secondary"))
+        btn_export.clicked.connect(self._save_medidas_csv)
+        header.addWidget(btn_export)
+        lay.addLayout(header)
+
+        lbl2 = QLabel("Espectros almacenados en la base de datos.")
+        lbl2.setStyleSheet("color: #888; margin-bottom: 8px;")
+        lay.addWidget(lbl2)
+
+        lay.addWidget(self._get_medidas_table())
+        return page
+
+    def _get_medidas_table(self) -> QTableWidget:
+        usar_raw = (self.combo_medidas_tipo.currentIndex() == 1
+                    if hasattr(self, 'combo_medidas_tipo') else False)
+        col_espectro = "espectro_raw" if usar_raw else "espectro_normalizado"
+
+        cabeceras = ["ID", "Modo", "Calibrado"] + CSV_HEADER + ["Notas"]
+        table = QTableWidget()
+        table.setColumnCount(len(cabeceras))
+        table.setHorizontalHeaderLabels(cabeceras)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        table.horizontalHeader().setStretchLastSection(True)
+        table.verticalHeader().setVisible(False)
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+            cur.execute(
+                f"SELECT id, modo_medicion, calibracion_aplicada, "
+                f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
+            )
+            rows = cur.fetchall()
+            conn.close()
+        except sqlite3.Error:
+            rows = []
+
+        table.setRowCount(len(rows))
+        for i, (mid, modo, cal, espectro_str, notas) in enumerate(rows):
+            try:
+                espectro = ast.literal_eval(espectro_str)
+            except (ValueError, SyntaxError):
+                espectro = []
+
+            valores_fila = [
+                str(mid),
+                modo or "—",
+                "Sí" if cal else "No",
+            ] + [str(round(v, 4)) if j < len(espectro) else "—"
+                 for j, v in enumerate(espectro)] + [notas or ""]
+
+            for j, val in enumerate(valores_fila):
+                item = QTableWidgetItem(val)
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                table.setItem(i, j, item)
+
+        return table
+
+    def _refresh_medidas(self):
+        medidas_page = self.stack.widget(2)
+        layout = medidas_page.layout()
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item and isinstance(item.widget(), QTableWidget):
+                old = item.widget()
+                layout.removeWidget(old)
+                old.deleteLater()
+                break
+        layout.addWidget(self._get_medidas_table())
+
+    def _save_medidas_csv(self):
+        usar_raw = self.combo_medidas_tipo.currentIndex() == 1
+        col_espectro = "espectro_raw" if usar_raw else "espectro_normalizado"
+        tipo_label   = "raw" if usar_raw else "normalizado"
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur  = conn.cursor()
+            cur.execute(
+                f"SELECT id, modo_medicion, calibracion_aplicada, "
+                f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
+            )
+            rows = cur.fetchall()
+            conn.close()
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Error de base de datos", str(e))
+            return
+
+        if not rows:
+            QMessageBox.information(self, "Sin datos", "No hay medidas que exportar.")
+            return
+
+        default = f"medidas_{tipo_label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar medidas", default, "CSV Files (*.csv)")
+        if not path:
+            return
+
+        try:
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["id", "modo_medicion", "calibracion_aplicada"] + CSV_HEADER + ["notas"])
+                for mid, modo, cal, espectro_str, notas in rows:
+                    try:
+                        espectro = ast.literal_eval(espectro_str)
+                    except (ValueError, SyntaxError):
+                        espectro = [""] * len(CSV_HEADER)
+                    writer.writerow([mid, modo or "", int(cal or 0)] + espectro + [notas or ""])
+            self._set_status(f"Medidas exportadas ({len(rows)} filas, {tipo_label})")
+        except OSError as e:
+            QMessageBox.critical(self, "Error al guardar", str(e))
 
     # ------------------------------------------------------------------ #
     #  Ciclo de vida                                                       #
