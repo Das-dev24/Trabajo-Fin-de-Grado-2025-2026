@@ -4,3 +4,5 @@
 __pycache__/
 .vscode/
 Prueba/
+.pytest_cache/
+.sonar/

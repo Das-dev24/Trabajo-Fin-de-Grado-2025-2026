@@ -62,6 +62,7 @@ class SpectroControlUI(QMainWindow):
         self._cargar_calibraciones_db()
 
     def _init_ui(self):
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         central = QWidget()
         self.setCentralWidget(central)
         root = QHBoxLayout(central)
@@ -1047,18 +1048,21 @@ class SpectroControlUI(QMainWindow):
 
     def _build_history_table(self) -> QTableWidget:
         """Crea la QTableWidget con los datos de la BD y un botón PDF por fila."""
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.execute('''
-            SELECT a.id, a.nombre_analisis, a.timestamp,
-                   m.modo_medicion, m.calibracion_aplicada,
-                   p.clase_miel
-            FROM analisis a
-            LEFT JOIN muestras m     ON a.id_muestra   = m.id
-            LEFT JOIN predicciones p ON a.id_prediccion = p.id
-            ORDER BY a.timestamp DESC
-        ''')
-        datos = cursor.fetchall()
-        conn.close()
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.execute('''
+                SELECT a.id, a.nombre_analisis, a.timestamp,
+                       m.modo_medicion, m.calibracion_aplicada,
+                       p.clase_miel
+                FROM analisis a
+                LEFT JOIN muestras m     ON a.id_muestra   = m.id
+                LEFT JOIN predicciones p ON a.id_prediccion = p.id
+                ORDER BY a.timestamp DESC
+            ''')
+            datos = cursor.fetchall()
+            conn.close()
+        except sqlite3.Error:
+            datos = []
 
         cabeceras = ["ID", "Nombre", "Fecha", "Modo", "Calibrado", "Clase", ""]
         table = QTableWidget()

@@ -1,4 +1,4 @@
-import os
+from hives.core.paths import DB_PATH, MODEL_PATH
 
 CAL_BLANCO = "blanco"
 CAL_OSCURO = "oscuro"
@@ -9,16 +9,6 @@ WAVELENGTHS = [410, 435, 460, 485, 510, 535, 560, 585,
 CSV_HEADER  = ["A_410", "B_435", "C_460", "D_485", "E_510", "F_535", "G_560", "H_585",
                "R_610", "I_645", "S_680", "J_705", "T_730", "U_760", "V_810", "W_860",
                "K_900", "L_940"]
-
-# __file__ está en src/hives/constants.py  →  subir 3 niveles = raíz del proyecto
-_ROOT_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))
-    )
-)
-
-DB_PATH    = os.path.normpath(os.path.join(_ROOT_DIR, 'data', 'data.db'))
-MODEL_PATH = os.path.normpath(os.path.join(_ROOT_DIR, 'models'))
 
 MODO_REFLECTANCIA  = "reflectancia"
 MODO_TRANSMITANCIA = "transmitancia"

@@ -1,7 +1,9 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+if not getattr(sys, 'frozen', False):
+    sys.path.insert(0, _SRC_DIR)
 
 from PyQt6.QtWidgets import QApplication
 from hives.gui.main_window import SpectroControlUI

@@ -3,7 +3,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from constants import DB_PATH
+from hives.core.paths import DB_PATH
 
 
 def seed_database():
