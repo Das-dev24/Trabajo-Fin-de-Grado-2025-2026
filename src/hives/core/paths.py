@@ -25,3 +25,4 @@ _MEIPASS  = _get_meipass()
 
 DB_PATH    = os.path.normpath(os.path.join(_BASE_DIR, 'data', 'data.db'))
 MODEL_PATH = os.path.normpath(os.path.join(_MEIPASS, 'models'))
+ICON_PATH  = os.path.normpath(os.path.join(_MEIPASS, 'assets', 'hives_icon.png'))

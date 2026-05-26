@@ -6,10 +6,13 @@ if not getattr(sys, 'frozen', False):
     sys.path.insert(0, _SRC_DIR)
 
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
+from hives.core.paths import ICON_PATH
 from hives.gui.main_window import SpectroControlUI
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(ICON_PATH))
     window = SpectroControlUI()
     window.showMaximized()
     sys.exit(app.exec())

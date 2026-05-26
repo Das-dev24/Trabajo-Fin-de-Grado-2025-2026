@@ -6,3 +6,6 @@ __pycache__/
 Prueba/
 .pytest_cache/
 .sonar/
+.build_venv/
+build/
+dist/

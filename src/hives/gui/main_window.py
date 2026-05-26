@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QCheckBox, QMenu,
 )
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QIcon
 
 import serial.tools.list_ports
 
@@ -23,15 +24,18 @@ from hives.constants import (
     MODO_REFLECTANCIA, MODO_TRANSMITANCIA,
 )
 from hives.core.sensor import SerialReader
+from hives.core.database import seed_database
 from hives.gui.dialogs import NombreAnalisisDialog, CalibracionDialog
 from hives.gui.widgets import SpectralCanvas
 from hives.gui.workers import SerialWorker
 from hives.inference.model import load_model, run_inference
+from hives.core.paths import ICON_PATH
 
 
 class SpectroControlUI(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowIcon(QIcon(ICON_PATH))
         self.setWindowTitle("HIVES — Clasificación de Miel")
         self.setGeometry(100, 100, 1100, 720)
         self.setMinimumSize(800, 550)
@@ -63,6 +67,7 @@ class SpectroControlUI(QMainWindow):
 
     def _init_ui(self):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        seed_database()
         central = QWidget()
         self.setCentralWidget(central)
         root = QHBoxLayout(central)
@@ -863,6 +868,35 @@ class SpectroControlUI(QMainWindow):
             conn = sqlite3.connect(DB_PATH)
             cur  = conn.cursor()
 
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS muestras (
+                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    espectro_raw         TEXT    NOT NULL,
+                    espectro_normalizado TEXT    NOT NULL,
+                    modo_medicion        VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+                    calibracion_aplicada INTEGER    NOT NULL DEFAULT 0,
+                    notas                TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS predicciones (
+                    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                    clase_miel            VARCHAR(255),
+                    vector_probabilidades TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS analisis (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre_analisis VARCHAR(255) NOT NULL,
+                    timestamp       DATETIME     NOT NULL,
+                    id_muestra      INTEGER      NOT NULL,
+                    id_prediccion   INTEGER,
+                    FOREIGN KEY (id_muestra)    REFERENCES muestras(id)     ON DELETE CASCADE,
+                    FOREIGN KEY (id_prediccion) REFERENCES predicciones(id) ON DELETE SET NULL
+                )
+            """)
+
             cur.execute(
                 "INSERT INTO muestras (espectro_raw, espectro_normalizado, "
                 "modo_medicion, calibracion_aplicada) VALUES (?, ?, ?, ?)",
@@ -892,6 +926,7 @@ class SpectroControlUI(QMainWindow):
             self.lbl_last_save.setText(f"«{self._nombre_analisis}» → {clase}  |  {ts}")
             self._set_status(f"Análisis completado: {clase}  (media de {n} lecturas)")
             self._refresh_history()
+            self._refresh_medidas()
 
         except sqlite3.Error as e:
             self._set_status("Error al guardar en DB")
@@ -911,6 +946,28 @@ class SpectroControlUI(QMainWindow):
             conn = sqlite3.connect(DB_PATH)
             cur  = conn.cursor()
 
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS muestras (
+                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    espectro_raw         TEXT    NOT NULL,
+                    espectro_normalizado TEXT    NOT NULL,
+                    modo_medicion        VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
+                    calibracion_aplicada INTEGER    NOT NULL DEFAULT 0,
+                    notas                TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS analisis (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre_analisis VARCHAR(255) NOT NULL,
+                    timestamp       DATETIME     NOT NULL,
+                    id_muestra      INTEGER      NOT NULL,
+                    id_prediccion   INTEGER,
+                    FOREIGN KEY (id_muestra)    REFERENCES muestras(id)     ON DELETE CASCADE,
+                    FOREIGN KEY (id_prediccion) REFERENCES predicciones(id) ON DELETE SET NULL
+                )
+            """)
+
             cur.execute(
                 "INSERT INTO muestras (espectro_raw, espectro_normalizado, "
                 "modo_medicion, calibracion_aplicada) VALUES (?, ?, ?, ?)",
@@ -918,14 +975,23 @@ class SpectroControlUI(QMainWindow):
                  self._get_modo_medicion(),
                  int(self._cal_disponible_y_activa())),
             )
+            id_muestra = cur.lastrowid
+
+            ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cur.execute(
+                "INSERT INTO analisis (nombre_analisis, timestamp, id_muestra, id_prediccion) "
+                "VALUES (?, ?, ?, ?)",
+                (self._nombre_analisis, ts, id_muestra, None),
+            )
 
             conn.commit()
             conn.close()
 
-            n  = len(self.captured_data)
-            ts = datetime.now().strftime('%H:%M:%S')
-            self.lbl_last_save.setText(f"Muestra guardada sin predicción  |  {ts}")
+            n = len(self.captured_data)
+            self.lbl_last_save.setText(f"«{self._nombre_analisis}» guardado sin predicción  |  {ts}")
             self._set_status(f"Muestra guardada  (media de {n} lecturas, sin clasificar)")
+            self._refresh_history()
+            self._refresh_medidas()
 
         except sqlite3.Error as e:
             self._set_status("Error al guardar en DB")
@@ -1341,6 +1407,11 @@ class SpectroControlUI(QMainWindow):
                     CHECK (modo_medicion IN ('reflectancia', 'transmitancia'))
                 )
             """)
+            cur.execute(
+                "INSERT OR REPLACE INTO calibraciones (tipo, modo_medicion, valores, timestamp) "
+                "VALUES (?, ?, ?, ?)",
+                (tipo, modo, str(valores), ts),
+            )
             conn.commit()
             conn.close()
         except sqlite3.Error as e:

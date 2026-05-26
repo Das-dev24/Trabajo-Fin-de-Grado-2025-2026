@@ -4,6 +4,8 @@ import os
 import glob
 import platform
 
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
 
 # ── Platform detection ────────────────────────────────────────────────
 _SYSTEM   = platform.system()
@@ -25,20 +27,51 @@ if os.path.isdir(_models_dir):
     for f in glob.glob(os.path.join(_models_dir, '*.keras')):
         _datas.append((f, 'models'))
 
+# Matplotlib needs its mpl-data folder (fonts, rcParams, etc.)
+_datas += collect_data_files('matplotlib')
+
+# App icon
+_icon_png = os.path.join(_PROJECT_ROOT, 'assets', 'hives_icon.png')
+if os.path.isfile(_icon_png):
+    _datas.append((_icon_png, 'assets'))
+_icon_ico = os.path.join(_PROJECT_ROOT, 'assets', 'hives.ico')
+if os.path.isfile(_icon_ico):
+    _datas.append((_icon_ico, 'assets'))
+
 
 # ── Hidden imports (modules PyInstaller may miss) ─────────────────────
 _hiddenimports = [
+    # TensorFlow
     'tensorflow',
+    # NumPy / SciPy
     'numpy',
+    # PySerial
     'serial',
     'serial.tools.list_ports',
+    # Matplotlib (backend QtAgg + core)
     'matplotlib',
+    'matplotlib.backends.backend_qtagg',
+    'matplotlib.backends.backend_qt',
+    'matplotlib.backends.backend_agg',
+    'matplotlib.pyplot',
+    'matplotlib.figure',
+    'matplotlib.font_manager',
+    # Matplotlib dependencies
+    'kiwisolver',
+    'pyparsing',
+    'contourpy',
+    'packaging',
+    'fonttools',
+    'dateutil',
+    # PDF
     'fpdf',
+    # PyQt6
     'PyQt6',
     'PyQt6.QtCore',
     'PyQt6.QtWidgets',
     'PyQt6.QtGui',
-]
+    'PyQt6.QtSvg',
+] + collect_submodules('matplotlib.backends')
 
 
 # ── Analysis ──────────────────────────────────────────────────────────
@@ -48,12 +81,17 @@ a = Analysis(
     binaries=[],
     datas=_datas,
     hiddenimports=_hiddenimports,
-    hookspath=[],
+    hookspath=[os.path.join(_SRC_DIR, 'hooks')],
     hooksconfig={},
-    runtime_hooks=[],
-    excludes=['tkinter', 'test'],
+    runtime_hooks=[os.path.join(_SRC_DIR, 'runtime_hook.py')],
+    excludes=[
+        'tkinter', 'test',
+        'pandas', 'scipy', 'sklearn', 'cv2',
+        'setuptools', 'pydoc', 'pdb',
+        'lib2to3', 'curses', 'idlelib', 'turtledemo',
+    ],
     noarchive=False,
-    optimize=0,
+    optimize=2,
 )
 pyz = PYZ(a.pure)
 
@@ -106,26 +144,34 @@ if _IS_MACOS:
     )
 
 # ═══════════════════════════════════════════════════════════════════════
-#  Linux / Windows — onefile executable
+#  Linux / Windows — one-dir executable (faster startup, faster build)
 # ═══════════════════════════════════════════════════════════════════════
 else:
     exe = EXE(
         pyz,
         a.scripts,
-        a.binaries,
-        a.datas,
-        [],
+        exclude_binaries=True,
         name='HIVES',
         debug=False,
         bootloader_ignore_signals=False,
         strip=_IS_LINUX,
-        upx=True,
+        upx=False,
         upx_exclude=[],
-        runtime_tmpdir=None,
         console=False,
         disable_windowed_traceback=False,
         argv_emulation=False,
         target_arch=None,
         codesign_identity=None,
         entitlements_file=None,
+        icon=os.path.join(_PROJECT_ROOT, 'assets', 'hives.ico') if _IS_WIN else None,
+    )
+
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=_IS_LINUX,
+        upx=False,
+        upx_exclude=[],
+        name='HIVES',
     )
