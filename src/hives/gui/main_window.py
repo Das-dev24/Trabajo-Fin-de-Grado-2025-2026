@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 import csv
@@ -29,7 +30,11 @@ from hives.gui.dialogs import NombreAnalisisDialog, CalibracionDialog
 from hives.gui.widgets import SpectralCanvas
 from hives.gui.workers import SerialWorker
 from hives.inference.model import load_model, run_inference
+import hives.inference.model as _model_module
 from hives.core.paths import ICON_PATH
+
+
+logger = logging.getLogger(__name__)
 
 
 class SpectroControlUI(QMainWindow):
@@ -50,6 +55,11 @@ class SpectroControlUI(QMainWindow):
 
         self._nombre_analisis: str = ""
         self._model = load_model(MODEL_PATH)
+        self._model_error: str = _model_module.last_load_error if self._model is None else ""
+        if self._model is None:
+            logger.error("Modelo NO cargado: %s", self._model_error)
+        else:
+            logger.info("Modelo cargado correctamente")
 
         self._calibraciones: dict = {
             MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
@@ -176,6 +186,8 @@ class SpectroControlUI(QMainWindow):
         lbl_model.setStyleSheet(
             f"color: {'#5a5' if model_ok else '#a55'}; font-size: 10px; padding: 2px 0;"
         )
+        if not model_ok:
+            lbl_model.setToolTip(self._model_error)
         lay.addWidget(lbl_model)
 
         self.lbl_conn_status = QLabel("Desconectado")

@@ -29,7 +29,7 @@ def test_load_model_returns_none_on_load_exception(mocker, tmp_path):
 
 
 def test_load_model_returns_model_object(mocker, tmp_path):
-    (tmp_path / "model.keras").touch()
+    (tmp_path / "mejor_modelo.keras").touch()
     mock_keras_model = MagicMock()
     mock_tf = MagicMock()
     mock_tf.keras.models.load_model.return_value = mock_keras_model
@@ -54,6 +54,7 @@ def test_run_inference_returns_class_and_probs():
     from hives.reports.pdf_report import HONEY_CLASSES
 
     model = MagicMock()
+    model._clase_names = None  # prevent MagicMock auto-create
     raw_probs = [0.0] * 12
     raw_probs[3] = 0.9   # "Manuka" is index 3 in HONEY_CLASSES
     raw_probs[0] = 0.1
@@ -70,6 +71,7 @@ def test_run_inference_class_fallback_no_output_names():
     from hives.inference.model import run_inference
 
     model = MagicMock()
+    model._clase_names = None  # prevent MagicMock auto-create
     raw_probs = [0.0, 0.95, 0.05]
     model.predict.return_value = np.array([raw_probs])
     # Make output_names raise AttributeError
@@ -84,6 +86,7 @@ def test_run_inference_probs_rounded():
     from hives.reports.pdf_report import HONEY_CLASSES
 
     model = MagicMock()
+    model._clase_names = None  # prevent MagicMock auto-create
     raw_probs = [1 / 12] * 12
     model.predict.return_value = np.array([raw_probs])
     model.output_names = list(HONEY_CLASSES)
@@ -98,6 +101,7 @@ def test_run_inference_argmax_correctness():
     from hives.inference.model import run_inference
 
     model = MagicMock()
+    model._clase_names = None  # prevent MagicMock auto-create
     raw_probs = [0.0, 0.95, 0.05]
     model.predict.return_value = np.array([raw_probs])
     model.output_names = ["Clase_0", "Clase_1", "Clase_2"]
@@ -111,6 +115,7 @@ def test_run_inference_all_zero_probs():
     from hives.inference.model import run_inference
 
     model = MagicMock()
+    model._clase_names = None  # prevent MagicMock auto-create
     raw_probs = [0.0] * 12
     model.predict.return_value = np.array([raw_probs])
     model.output_names = [f"Clase_{i}" for i in range(12)]

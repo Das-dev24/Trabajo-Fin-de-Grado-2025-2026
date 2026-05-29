@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="$SCRIPT_DIR/.build_venv"
+VENV_DIR="/tmp/.build_venv"
 DIST_DIR="$SCRIPT_DIR/dist"
 
 if [ ! -d "$VENV_DIR" ]; then
@@ -11,9 +11,9 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 
 source "$VENV_DIR/bin/activate"
-pipx install --upgrade pip -q
-pipx install -r "$SCRIPT_DIR/requirements.txt" -q
-pipx install pyinstaller -q
+pip install --upgrade pip -q
+pip install -r "$SCRIPT_DIR/requirements.txt" -q
+pip install pyinstaller -q
 
 echo "Ejecutando PyInstaller..."
 pyinstaller "$SCRIPT_DIR/HIVES.spec" --clean --noconfirm

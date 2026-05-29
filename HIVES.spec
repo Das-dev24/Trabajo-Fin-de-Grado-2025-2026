@@ -26,6 +26,10 @@ _models_dir = os.path.join(_PROJECT_ROOT, 'models')
 if os.path.isdir(_models_dir):
     for f in glob.glob(os.path.join(_models_dir, '*.keras')):
         _datas.append((f, 'models'))
+    # clases.json con los nombres de las clases del modelo
+    _json_path = os.path.join(_models_dir, 'clases.json')
+    if os.path.isfile(_json_path):
+        _datas.append((_json_path, 'models'))
 
 # Matplotlib needs its mpl-data folder (fonts, rcParams, etc.)
 _datas += collect_data_files('matplotlib')
@@ -43,6 +47,14 @@ if os.path.isfile(_icon_ico):
 _hiddenimports = [
     # TensorFlow
     'tensorflow',
+    'tensorflow.python',
+    'tensorflow.python.framework',
+    'tensorflow.python.platform',
+    'tensorflow.python.saved_model',
+    'tensorflow.python.ops',
+    'tensorflow.python.keras',
+    'keras',
+    'keras.api',
     # NumPy / SciPy
     'numpy',
     # PySerial
@@ -85,13 +97,23 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[os.path.join(_SRC_DIR, 'runtime_hook.py')],
     excludes=[
+        # GUI / test toolkits
         'tkinter', 'test',
-        'pandas', 'scipy', 'sklearn', 'cv2',
-        'setuptools', 'pydoc', 'pdb',
+        # NOTE: do NOT exclude 'pdb' / 'pydoc' — absl.app imports pdb at module
+        # level, so excluding it breaks `import tensorflow` (ModuleNotFoundError).
         'lib2to3', 'curses', 'idlelib', 'turtledemo',
+        # Unused data-science libraries (reduce build size significantly)
+        'pandas', 'scipy', 'sklearn', 'cv2',
+        'setuptools',
+        # TensorBoard — separate package, not imported by `import tensorflow`
+        'tensorboard',
+        # NOTE: do NOT exclude any 'tensorflow.python.*' submodules. TF's core
+        # import chain pulls many of them transitively (e.g. profiler provides
+        # _pywrap_traceme, tools provides module_util), so excluding them breaks
+        # `import tensorflow` with ImportError.
     ],
     noarchive=False,
-    optimize=2,
+    optimize=1,
 )
 pyz = PYZ(a.pure)
 
