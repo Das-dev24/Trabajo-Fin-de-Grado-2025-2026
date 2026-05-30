@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="/tmp/.build_venv"
+VENV_DIR="${TMPDIR:-/tmp}/.hives_build_venv"
 DIST_DIR="$SCRIPT_DIR/dist"
 
 #Versiones de python compatibles con TensorFlow
@@ -20,13 +20,12 @@ is_compatible() {
 
 PYTHON="${PYTHON:-}"
 
-#Comprobamos si el python instalado es compatible
+#Vemos la verisón del python instalado
 if [ -n "$PYTHON" ]; then
     if ! is_compatible "$PYTHON"; then
         echo "ERROR: \$PYTHON ($PYTHON) no es compatible con TensorFlow (requiere 3.${TF_MIN_MINOR}–3.${TF_MAX_MINOR})." >&2
         exit 1
     fi
-# 2) Otherwise probe common interpreter names on PATH.
 else
     for cand in python3.13 python3.12 python3.11 python3.10 python3.9 python3 python; do
         p="$(command -v "$cand" 2>/dev/null || true)"
@@ -37,13 +36,13 @@ else
     done
 fi
 
-#Si no encuentra python contabile lo instala con uv
+#Si no es compatible isntalamos luna verisón que si con uv
 if [ -z "$PYTHON" ]; then
     echo "No se encontró un Python compatible con TensorFlow (3.${TF_MIN_MINOR}–3.${TF_MAX_MINOR})."
     if ! command -v uv >/dev/null 2>&1; then
         echo "Instalando uv para provisionar Python 3.${TF_MAX_MINOR}..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
-        # shellcheck disable=SC1090
+
         [ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env"
         export PATH="$HOME/.local/bin:$PATH"
     fi
@@ -73,4 +72,4 @@ echo "Ejecutando PyInstaller..."
 pyinstaller "$SCRIPT_DIR/HIVES.spec" --clean --noconfirm
 
 echo ""
-echo "Ejecutable en: $DIST_DIR/HIVES/"
+echo "Aplicación en: $DIST_DIR/HIVES.app"
