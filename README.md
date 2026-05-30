@@ -168,11 +168,174 @@ python src/main.py
 
 ```text
 HIVES/
-├── arduino/            # Código fuente (C/C++) para el microcontrolador del espectrómetro
-├── assets/             # Recursos gráficos de la interfaz (iconos, logos)
-├── data/               # Almacenamiento local (base de datos SQLite)
-├── models/             # Archivos de la red neuronal (.h5)
-├── src/                # Código fuente principal de la aplicación Python
-│   └── main.py         # Punto de entrada de la aplicación
-├── requirements.txt    # Dependencias del proyecto Python
-└── README.md           # Documentación del repositorio
+├── arduino/                        # Código C/C++ para el microcontrolador del espectrómetro
+│   └── LecturasParaInterfaz.ino    # Sketch del sensor SparkFun AS7265X
+├── assets/                         # Recursos gráficos (iconos, logos)
+├── build/                          # Artefactos de compilación (PyInstaller)
+├── data/                           # Almacenamiento local
+│   ├── data.db                     # Base de datos SQLite (histórico de análisis)
+│   └── hives.log                   # Registro de la aplicación
+├── dist/                           # Distribuibles generados (ejecutables)
+├── models/                         # Modelos de IA, datasets y notebooks
+│   ├── mejor_modelo_final.keras    # Modelo de producción (TensorFlow)
+│   ├── clases.json                 # Etiquetas de las 5 clases de miel
+│   ├── dataset.csv                 # Dataset de entrenamiento
+│   ├── pruebaColab.ipynb           # Notebook de entrenamiento (Colab)
+│   └── ...
+├── src/                            # Código fuente Python
+│   ├── main.py                     # Punto de entrada de la aplicación
+│   ├── constants.py                # Constantes (legacy - no modificar)
+│   ├── sensor.py                   # Módulo sensor (legacy - no modificar)
+│   ├── db/                         # Módulo BD (legacy - no modificar)
+│   │   └── seeder.py
+│   ├── hooks/                      # Hooks para PyInstaller
+│   │   ├── hook-keras.py
+│   │   ├── hook-matplotlib.py
+│   │   └── hook-tensorflow.py
+│   └── hives/                      # Paquete activo de la aplicación
+│       ├── __init__.py
+│       ├── constants.py            # Constantes (baudrate, longitudes de onda, rutas)
+│       ├── core/
+│       │   ├── database.py         # Gestión de esquema y operaciones SQLite
+│       │   ├── paths.py            # Resolución de rutas relativas
+│       │   └── sensor.py           # Wrapper PySerial (comandos: s, x, l)
+│       ├── gui/
+│       │   ├── main_window.py      # Ventana principal (QMainWindow)
+│       │   ├── widgets.py          # Widgets personalizados (espectro en vivo)
+│       │   ├── dialogs.py          # Diálogos (nombre análisis, calibración)
+│       │   └── workers.py          # QThread workers (lectura serie, inferencia)
+│       ├── inference/
+│       │   └── model.py            # Carga y predicción del modelo .keras
+│       └── reports/
+│           └── pdf_report.py       # Generación de informes PDF con fpdf2
+├── tests/                          # Suite de tests (pytest)
+│   ├── conftest.py                 # Configuración y fixtures compartidos
+│   ├── test_database.py
+│   ├── test_dialogs.py
+│   ├── test_inference.py
+│   ├── test_main_window.py
+│   ├── test_pdf_report.py
+│   ├── test_sensor.py
+│   ├── test_widgets.py
+│   └── test_workers.py
+├── HIVES.spec                      # Especificación de PyInstaller (multiplataforma)
+├── build_windows.ps1               # Script de compilación para Windows (PowerShell)
+├── build_macos.sh                  # Script de compilación para macOS
+├── build_linux.sh                  # Script de compilación para Linux
+├── pyproject.toml                  # Configuración de pytest
+├── requirements.txt                # Dependencias del proyecto
+├── AGENTS.md                       # Guía para asistentes de IA (opencode)
+├── CLAUDE.md                       # Guía para Claude Code
+└── README.md                       # Esta documentación
+```
+
+## Arquitectura del software
+
+### Flujo de datos
+
+```
+[SparkFun AS7265X] → (I²C) → [Arduino] → (Serial 115200 baud) → [SerialWorker (QThread)]
+                                                                        ↓
+                                                              [SpectroControlUI]
+                                                              (calibración: R = (raw-dark)/(white-dark))
+                                                                        ↓
+                                                              [Modelo TensorFlow]
+                                                              (predict sobre espectro normalizado)
+                                                                        ↓
+                                                              [SQLite + PDF]
+```
+
+### Módulos principales (`src/hives/`)
+
+| Módulo | Clase/Función | Responsabilidad |
+|---|---|---|
+| `core/sensor.py` | `SerialReader` | Comunicación serie, comandos: `s` (scan), `x` (stop), `l` (toggle LEDs) |
+| `core/database.py` | `seed_database` / queries | Tablas: `muestras`, `predicciones`, `analisis`, `calibraciones` |
+| `inference/model.py` | `load_model` / `predict` | Carga modelo `.keras`, ejecuta inferencia |
+| `gui/main_window.py` | `SpectroControlUI` | `QMainWindow` que orquesta todos los componentes |
+| `gui/workers.py` | `SerialWorker` | `QThread` para lectura serie no bloqueante |
+| `gui/widgets.py` | `SpectralCanvas` | Gráfico de barras en vivo con matplotlib |
+| `gui/dialogs.py` | `NombreAnalisisDialog`, `CalibracionDialog` | Diálogos modales |
+| `reports/pdf_report.py` | `generate_pdf_report` | Genera informe técnico en PDF |
+
+## Pruebas
+
+El proyecto incluye una suite completa de tests con pytest:
+
+```bash
+# Ejecutar todos los tests
+pytest
+
+# Con cobertura
+pytest --cov=src --cov-report=term
+
+# Tests específicos
+pytest tests/test_database.py -v
+```
+
+Los tests requieren las dependencias adicionales `pytest-qt` y `pytest-mock` (incluidas en `requirements.txt`).
+
+## Construcción del ejecutable
+
+El empaquetado usa **PyInstaller** con la especificación `HIVES.spec`, que detecta
+automáticamente el sistema operativo y genera el artefacto adecuado en cada caso.
+Cada plataforma dispone de un script que crea un entorno virtual aislado, instala
+las dependencias + PyInstaller y lanza la compilación.
+
+> **Requisito:** TensorFlow solo publica wheels para **Python 3.9–3.13**. Los scripts
+> eligen un intérprete compatible automáticamente (y, si no encuentran ninguno, lo
+> provisionan con [uv](https://docs.astral.sh/uv/)). Puedes forzar uno concreto con la
+> variable de entorno `PYTHON` (Linux/macOS) o `$env:PYTHON` (Windows).
+
+### Windows
+
+```powershell
+.\build_windows.ps1
+```
+
+Si PowerShell bloquea la ejecución de scripts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_windows.ps1
+```
+
+El ejecutable se generará en `dist\HIVES\HIVES.exe`.
+
+### macOS
+
+```bash
+chmod +x build_macos.sh
+./build_macos.sh
+```
+
+La aplicación se generará como bundle en `dist/HIVES.app`.
+
+### Linux
+
+```bash
+chmod +x build_linux.sh
+./build_linux.sh
+```
+
+El ejecutable se generará en `dist/HIVES/`.
+
+## Tecnologías utilizadas
+
+| Categoría | Tecnología |
+|---|---|
+| **Lenguaje principal** | Python 3.10 |
+| **GUI** | PyQt6 |
+| **Machine Learning** | TensorFlow / Keras |
+| **Comunicaciones** | PySerial (protocolo serie a 115200 baud) |
+| **Visualización** | Matplotlib (FigureCanvasQTAgg) |
+| **Exportación PDF** | fpdf2 |
+| **Base de Datos** | SQLite3 (nativo) |
+| **Microcontrolador** | C/C++ (Arduino IDE) |
+| **Testing** | pytest, pytest-qt, pytest-mock |
+| **Empaquetado** | PyInstaller |
+
+## Notas importantes
+
+* **Rutas relativas:** La aplicación resuelve las rutas a `data/` y `models/` de forma relativa a `src/`. Ejecuta siempre `python src/main.py` desde la raíz del proyecto.
+* **Concurrencia:** Toda la E/S serie y la inferencia ML se ejecutan en hilos `QThread`. Nunca realices operaciones bloqueantes en el hilo principal de la GUI.
+* **Código legacy:** Existen dos árboles fuente paralelos. `src/hives/` es el paquete activo. Los archivos planos (`src/constants.py`, `src/db/`, `src/sensor.py`) son legacy y no deben modificarse.
