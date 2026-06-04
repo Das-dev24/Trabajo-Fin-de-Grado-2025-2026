@@ -24,7 +24,7 @@ from hives.constants import (
     DB_PATH, MODEL_PATH,
     MODO_REFLECTANCIA, MODO_TRANSMITANCIA,
 )
-from hives.core.sensor import SerialReader
+from hives.core.sensor import SerialReader, MockSerialReader
 from hives.core.database import seed_database
 from hives.gui.dialogs import NombreAnalisisDialog, CalibracionDialog
 from hives.gui.widgets import SpectralCanvas
@@ -160,6 +160,16 @@ class SpectroControlUI(QMainWindow):
         lbl_baud = QLabel(f"Baud: {BAUDRATE}")
         lbl_baud.setStyleSheet("color: #666; font-size: 11px; padding: 2px 0;")
         lay.addWidget(lbl_baud)
+
+        self.chk_modo_prueba = QCheckBox("Modo Prueba")
+        self.chk_modo_prueba.setStyleSheet(
+            "QCheckBox { color: #aaa; font-size: 11px; background: transparent; spacing: 4px; }"
+            "QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid #777; "
+            "border-radius: 3px; background: #3c3c3c; }"
+            "QCheckBox::indicator:checked { background-color: #3a7ebf; border-color: #3a7ebf; }"
+        )
+        self.chk_modo_prueba.setToolTip("Simula datos del sensor sin hardware real")
+        lay.addWidget(self.chk_modo_prueba)
 
         lay.addSpacing(8)
 
@@ -599,31 +609,37 @@ class SpectroControlUI(QMainWindow):
 
     def _toggle_connection(self):
         if not self._connected:
-            port = self.combo_port.currentText()
-            if not port or "Sin puertos" in port:
-                QMessageBox.warning(self, "Sin puerto", "Selecciona un puerto serie válido primero.")
-                return
-
-            self.reader = SerialReader(port=port, baudrate=BAUDRATE)
-            if self.reader.connect():
+            if self.chk_modo_prueba.isChecked():
+                self.reader = MockSerialReader()
                 self._connected = True
-                self.btn_connect.setText("Desconectar")
-                self.btn_connect.setStyleSheet(self._btn_style("danger"))
-                self.btn_start.setEnabled(True)
-                self.btn_start.setStyleSheet(self._btn_style("primary"))
-                self.btn_led.setEnabled(True)
-                self.btn_calibrar.setEnabled(True)
-                self.btn_calibrar.setStyleSheet(self._btn_style("secondary"))
-                self.btn_manual.setEnabled(True)
-                self.btn_manual.setStyleSheet(self._btn_style("warning"))
-                self.lbl_conn_status.setText(f"Conectado: {port}")
-                self.lbl_conn_status.setStyleSheet("color: #5a5; font-size: 11px;")
-                self.diag_port.setText(port)
-                self.diag_conn.setText("Conectado")
-                self._set_status("Conectado")
+                port_label = "Modo Prueba"
             else:
-                self.reader = None
-                QMessageBox.critical(self, "Error de conexión", f"No se pudo conectar a {port}.")
+                port = self.combo_port.currentText()
+                if not port or "Sin puertos" in port:
+                    QMessageBox.warning(self, "Sin puerto", "Selecciona un puerto serie válido primero.")
+                    return
+                self.reader = SerialReader(port=port, baudrate=BAUDRATE)
+                if not self.reader.connect():
+                    self.reader = None
+                    QMessageBox.critical(self, "Error de conexión", f"No se pudo conectar a {port}.")
+                    return
+                port_label = port
+
+            self._connected = True
+            self.btn_connect.setText("Desconectar")
+            self.btn_connect.setStyleSheet(self._btn_style("danger"))
+            self.btn_start.setEnabled(True)
+            self.btn_start.setStyleSheet(self._btn_style("primary"))
+            self.btn_led.setEnabled(True)
+            self.btn_calibrar.setEnabled(True)
+            self.btn_calibrar.setStyleSheet(self._btn_style("secondary"))
+            self.btn_manual.setEnabled(True)
+            self.btn_manual.setStyleSheet(self._btn_style("warning"))
+            self.lbl_conn_status.setText(f"Conectado: {port_label}")
+            self.lbl_conn_status.setStyleSheet("color: #5a5; font-size: 11px;")
+            self.diag_port.setText(port_label)
+            self.diag_conn.setText("Conectado")
+            self._set_status("Conectado")
         else:
             self._stop_acquisition()
             self.reader.disconnect()
@@ -770,7 +786,7 @@ class SpectroControlUI(QMainWindow):
             QMessageBox.critical(self, "Error de escaneo", "No se pudo iniciar el escaneo.")
             return
 
-        if self.reader.serial_connection:
+        if hasattr(self.reader, 'serial_connection') and self.reader.serial_connection:
             self.reader.serial_connection.reset_input_buffer()
 
         if duracion_override_ms is not None:

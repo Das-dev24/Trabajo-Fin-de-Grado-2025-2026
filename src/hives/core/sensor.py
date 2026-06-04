@@ -1,3 +1,6 @@
+import math
+import random
+
 import serial as _serial
 import time
 import csv
@@ -122,3 +125,50 @@ if __name__ == "__main__":
         reader.run_scanning(output_file="datos_sensor.csv", max_reads=50)
     finally:
         reader.disconnect()
+
+
+class MockSerialReader:
+    """Genera datos simulados para probar la interfaz sin hardware real."""
+
+    def __init__(self, port: str = "Modo Prueba", baudrate: int = 115200):
+        self.port = port
+        self.baudrate = baudrate
+        self.is_scanning = False
+        self.leds_enabled = False
+
+    def connect(self) -> bool:
+        return True
+
+    def disconnect(self):
+        pass
+
+    def send_command(self, command: str) -> Optional[str]:
+        if command == "s":
+            return "Scanning ..."
+        if command == "x":
+            return "Scan stopped"
+        if command == "l":
+            self.leds_enabled = not self.leds_enabled
+            return "OK"
+        return None
+
+    def start_scanning(self) -> bool:
+        self.is_scanning = True
+        return True
+
+    def stop_scanning(self) -> bool:
+        self.is_scanning = False
+        return True
+
+    def change_leds(self) -> bool:
+        self.leds_enabled = not self.leds_enabled
+        return True
+
+    def read_data(self) -> Optional[List[float]]:
+        if not self.is_scanning:
+            return None
+        base = [random.uniform(100, 300) for _ in range(18)]
+        for i in range(18):
+            base[i] += 2000 * math.exp(-((i - 9) ** 2) / 20)
+        base = [v + random.gauss(0, 15) for v in base]
+        return [round(max(v, 0.0), 1) for v in base]
