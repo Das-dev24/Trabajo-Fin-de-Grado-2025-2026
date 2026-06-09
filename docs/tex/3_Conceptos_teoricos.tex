@@ -1,0 +1,67 @@
+\capitulo{3}{Conceptos teóricos}
+
+El sistema HIVES integra conocimientos de espectroscopía óptica, bromatología apícola, inteligencia artificial e ingeniería de sistemas embebidos. Este capítulo sintetiza los fundamentos técnicos que justifican las decisiones de diseño adoptadas durante el desarrollo del proyecto.
+
+\section{Espectrometría y caracterización de mieles}
+
+La viabilidad comercial de las mieles monoflorales, determinada por su origen botánico, exige métodos de verificación que prevengan el fraude alimentario~\cite{eu2001honey}. Aunque el análisis melisopalinológico~\cite{louveaux1978methods} constituye el estándar normativo, sus altos costes y tiempos de procesamiento invitan a  la búsqueda de una alternativa automatizada.
+
+Para dar respuesta a esta necesidad, el sistema emplea la espectrometría de reflectancia difusa, que cuantifica la interacción de la luz con la materia para obtener una firma espectral única~\cite{skoog2018principios}. El hardware seleccionado es el sensor \textbf{SparkFun Triad AS7265x}, capaz de capturar la intensidad reflectiva en 18 canales discretos (entre 410~nm y 940~nm), abarcando los espectros ultravioleta (UV), visible y el infrarrojo cercano (NIR)~\cite{ams2018as7265x}.
+
+\imagentamano{img/Memoria/Espectro_electromagnetico.jpg}{Regiones del espectro electromagnético incluyendo los 18 canales del sensor AS7265x (410\,nm -- 940\,nm). Fuente: \cite{exiplast_iluminacion}}{0.65}
+
+Esta representación espectral compacta permite entrenar modelos predictivos para identificar las clases botánicas evaluadas en este proyecto: \textbf{Milflores}, \textbf{Retama}, \textbf{Miel de Bosque}, \textbf{Miel con Jaramago} y \textbf{Miel Industrial}.
+
+\imagentamano{img/Memoria/AS7265x.jpg}{Módulo SparkFun Triad AS7265x empleado como núcleo espectrométrico del sistema HIVES. Fuente: \cite{sparkfun_as7265x} }{0.6}
+
+\section{Inteligencia Artificial y modelado predictivo}
+
+El núcleo analítico de HIVES se fundamenta en algoritmos de aprendizaje supervisado, diseñados para inferir la clase botánica a partir de la firma espectral normalizada (mediante escalado Min-Max o Z-score, garantizando una convergencia estable).
+
+\subsection{Redes Neuronales Densas (MLP)}
+
+La arquitectura principal consiste en un Perceptrón Multicapa (MLP) adaptado a la dimensionalidad del sensor multicanal. La salida de cada neurona se computa aplicando una función de activación $f$ a la suma ponderada de sus entradas y su sesgo:
+
+\begin{equation}
+    y = f\left(\sum_{i=1}^{n} w_i x_i + b\right)
+\end{equation}
+
+\noindent Donde:
+\begin{itemize}
+    \item $y$: salida de la neurona.
+    \item $f$: función de activación, que introduce la no linealidad.
+    \item $x_i$: valor de la $i$-ésima entrada.
+    \item $w_i$: peso asociado a la entrada $x_i$.
+    \item $b$: sesgo (\textit{bias}), que desplaza la suma ponderada.
+    \item $n$: número total de entradas de la neurona.
+\end{itemize}
+\newpage
+La red cuenta con una capa de entrada de 18 neuronas y tres capas ocultas (512, 256 y 128 neuronas). En estas últimas se emplea la función de activación \textbf{Swish}~\cite{ramachandran2017swish}, seleccionada por su robusta propagación del gradiente en arquitecturas de mediana profundidad.
+
+\imagentamano{img/Memoria/arquitecturaMLP.png}{Arquitectura de la red neuronal densa (MLP) implementada en las primeras pruebas de HIVES. Fuente: Elaboración Propia.}{0.7}
+
+Para la clasificación multiclase, la capa de salida utiliza la función \textbf{Softmax}, que transforma las predicciones en una distribución de probabilidad sobre las $K$ clases posibles:
+
+\begin{equation}
+    \text{Softmax}(z_i) = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}
+\end{equation}
+
+El entrenamiento minimiza la entropía cruzada categórica ($\mathcal{L}$) mediante el optimizador \textbf{Adam}~\cite{kingma2015adam}, actualizando iterativamente los pesos en base al gradiente:
+
+\begin{equation}
+    \mathcal{L} = -\sum_{i=1}^{K} y_i \log(\hat{y}_i)
+\end{equation}
+
+\begin{equation}
+    w_i \leftarrow w_i - \eta \cdot \frac{\partial \mathcal{L}}{\partial w_i}
+\end{equation}
+
+\subsection{Bosques Aleatorios y prevención del sobreajuste}
+
+La escasez de datos empíricos etiquetados en el dominio apícola incrementa el riesgo de sobreajuste (\textit{overfitting}). En la red neuronal, este fenómeno se mitiga mediante técnicas de regularización, \textit{Dropout} y \textit{Early Stopping}.
+
+Como estrategia complementaria, se implementa un modelo de \textbf{Bosques Aleatorios} (\textit{Random Forest})~\cite{breiman2001rf}. Este método de ensamblado construye múltiples árboles de decisión y combina sus predicciones. A través de la inyección de aleatoriedad (\textit{bagging} y selección aleatoria de características), el algoritmo reduce drásticamente la varianza, ofreciendo un rendimiento robusto en regímenes con pocas muestras. La evaluación integral de todos los modelos se realiza mediante validación cruzada por pliegues (\textit{k-fold cross-validation}), asegurando que las métricas de rendimiento sean estadísticamente significativas~\cite{hastie2009esl}.
+
+\section{Integración Hardware-Software}
+
+La adquisición de espectros requiere una comunicación determinista entre la aplicación de escritorio y el hardware de medición. Este enlace físico se establece mediante el protocolo asíncrono \textbf{UART}, canalizado a través del bus USB mediante un microcontrolador que actúa como pasarela. Esta arquitectura simplifica notablemente el despliegue del sistema operativo, ya que los entornos modernos (Windows, Linux, macOS) instancian el puerto serie virtual de forma nativa, evitando la instalación de \textit{drivers} propietarios en el equipo del usuario final~\cite{axelson2007serial}.

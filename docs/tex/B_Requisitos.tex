@@ -1,0 +1,243 @@
+\apendice{Especificación de Requisitos}
+
+\section{Introducción}
+
+El presente apéndice recoge la especificación de requisitos del sistema HIVES (Honey Identification and Verification by Spectroscopy), una aplicación software desarrollada con el propósito de optimizar y reducir los costes asociados al análisis de muestras de miel, mediante la aplicación de técnicas de Inteligencia Artificial sobre datos espectrométricos.
+
+Este documento describe los objetivos generales del sistema, presenta el catálogo de requisitos funcionales y no funcionales, y proporciona la especificación detallada de los casos de uso principales que definen la interacción entre el usuario y la aplicación.
+
+Esta especificación constituye la base técnica sobre la cual se fundamentan las fases posteriores del ciclo de vida del software, incluyendo el diseño arquitectónico (Apéndice C), la implementación (Apéndice D) y la elaboración de la documentación de usuario (Apéndice E).
+
+\section{Objetivos generales}
+
+El sistema HIVES tiene como finalidad principal proporcionar una solución software accesible y económica para el análisis automatizado de muestras de miel mediante técnicas de espectrometría e Inteligencia Artificial. Los objetivos generales definidos para el sistema son los siguientes:
+\begin{itemize}
+\item OBJ-1: Automatización del análisis. Permitir la captura automática de datos de un espectrómetro mediante conexión por puerto serie con el dispositivo hardware, eliminando la necesidad de procesamiento manual por parte del operario.
+\item OBJ-2: Clasificación inteligente mediante IA. Utilizar un modelo de red neuronal implementado con \textit{TensorFlow} para clasificar las muestras de miel en función de sus características espectrales, proporcionando resultados precisos y fiables en un tiempo reducido.
+\item OBJ-3: Generación de informes técnicos. Producir reportes automatizados en formato PDF que incluyan la fecha del análisis, los resultados de la clasificación, las métricas capturadas y las métricas de evaluación del modelo de IA (niveles de confianza, probabilidades, etc.).
+\item OBJ-4: Almacenamiento de históricos. Registrar y preservar los datos de los análisis realizados en una base de datos local para posibilitar consultas posteriores, la aplicación de filtros de búsqueda y facilitar futuros procesos de reentrenamiento del modelo predictivo.
+\item OBJ-5: Usabilidad y accesibilidad. Diseñar e implementar una interfaz gráfica de usuario (GUI) intuitiva, provista de controles descriptivos y flujos de interacción claros, que habilite el uso del sistema a personal sin conocimientos técnicos avanzados.
+\end{itemize}
+\newpage
+\section{Catálogo de requisitos}
+\subsection{Requisitos Funcionales}
+\begin{table}[H]
+    \begin{tabular}{|c|p{10cm}|c|}
+        \hline
+        \textbf{ID} & \textbf{Descripción} & \textbf{Prioridad} \\ \hline
+        RF-01 & El sistema debe permitir al usuario iniciar un nuevo análisis de una muestra de miel. & Alta \\ \hline
+        RF-02 & El sistema debe establecer una conexión automática con el espectrómetro a través del puerto serie. & Alta \\ \hline
+        RF-03 & El sistema debe capturar los datos espectrométricos brutos procedentes de la muestra analizada. & Alta \\ \hline
+        RF-04 & El sistema debe procesar los datos capturados utilizando un modelo de red neuronal preentrenado basado en TensorFlow. & Alta \\ \hline
+        RF-05 & El sistema debe presentar los resultados derivados del análisis a través de la interfaz gráfica. & Alta \\ \hline
+        RF-06 & El sistema debe habilitar la generación y exportación de un reporte detallado del análisis en formato PDF. & Alta \\ \hline
+        RF-07 & El reporte generado debe contener obligatoriamente: fecha, resultados de la clasificación, métricas espectrométricas y métricas de confianza del modelo de IA. & Alta \\ \hline
+        RF-08 & El sistema debe persistir de manera automática los datos de cada análisis ejecutado en una base de datos local. & Alta \\ \hline
+        RF-09 & El sistema debe proporcionar una vista para la consulta del histórico de análisis previamente almacenados. & Media \\ \hline
+        RF-10 & El sistema debe incorporar herramientas de filtrado sobre el histórico (por rango de fechas, tipo de resultado, etc.). & Media \\ \hline
+        RF-11 & El sistema debe cargar el modelo de IA en memoria de forma automática durante la secuencia de inicio de la aplicación. & Alta \\ \hline
+    \end{tabular}
+    \caption{Tabla requisitos funcionales}
+\end{table}
+\newpage
+
+\subsection{Requisitos no funcionales}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|p{9cm}|c|}
+        \hline
+        \textbf{ID} & \textbf{Descripción} & \textbf{Prioridad} \\ \hline
+        RNF-01 & El tiempo máximo de ejecución de un análisis (desde la captura de datos hasta la renderización de resultados) no debe superar los 2 minutos. & Alta \\ \hline
+        RNF-02 & \textit{La aplicación debe estar desarrollada íntegramente en el lenguaje de programación Python}. & Alta \\ \hline
+        RNF-03 & \textit{El modelo de Inteligencia Artificial debe estar construido y ejecutado utilizando la biblioteca TensorFlow.} & Alta \\ \hline
+        RNF-04 & La aplicación debe operar de forma estrictamente local en la estación de trabajo del usuario (sin dependencias de la nube para la inferencia). & Alta \\ \hline
+        RNF-05 & El sistema debe garantizar la compatibilidad multiplataforma, soportando los sistemas operativos Windows, Linux y macOS. & Media \\ \hline
+        RNF-06 & El sistema debe restringir la ejecución concurrente, permitiendo únicamente un análisis activo en un momento dado. & Alta \\ \hline
+        RNF-07 & La interfaz gráfica de usuario debe basarse en principios de diseño minimalista, minimizando la carga cognitiva y facilitando la usabilidad. & Alta \\ \hline
+        RNF-08 & El sistema operará bajo un modelo de acceso local directo, sin requerir módulos de autenticación de usuarios. & Baja \\ \hline
+        RNF-09 & La persistencia de los datos históricos locales debe estructurarse de modo que facilite la extracción de datasets para el reentrenamiento futuro del modelo. & Media \\ \hline
+    \end{tabular}
+    \caption{Tabla requisitos no funcionales}
+\end{table}
+\newpage
+\section{Especificación de requisitos}
+A continuación, se presenta la especificación de los casos de uso principales del sistema HIVES, redactados conforme a los estándares habituales de la Ingeniería de Software.
+% Caso de Uso 1 -> Analizar muestra de miel
+\begin{center}
+    \small
+    \begin{longtable}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+      \caption{CU-01 Analizar Muestra de Miel.}\label{tabla:CU-01}\\
+      \toprule
+      \textbf{CU-01} & \textbf{Analizar Muestra de Miel}\\
+      \otoprule
+      \endfirsthead
+      \multicolumn{2}{l}{\small\slshape continúa desde la página anterior}\\
+      \toprule
+      \textbf{CU-01} & \textbf{Analizar Muestra de Miel}\\
+      \otoprule
+      \endhead
+      \hline
+      \multicolumn{2}{r}{\small\slshape continúa en la página siguiente}\\
+      \endfoot
+      \bottomrule
+      \endlastfoot
+      \textbf{Versión}              & 1.0 \\
+      \textbf{Autor}                & Diego Alonso Soria \\
+      \textbf{Requisitos asociados} & RF-01, RF-02, RF-03, RF-04, RF-05, RF-08, RNF-01, RNF-06 \\
+      \textbf{Descripción}          & El usuario inicia un análisis completo de la muestra de miel mediante el espectrómetro conectado al ordenador. El sistema captura los datos del espectrómetro, los procesa con el modelo de IA y presenta los resultados por pantalla \\
+      \textbf{Precondición}         &
+        \begin{itemize}
+          \tightlist
+          \item El espectrómetro debe estar conectado físicamente mediante puerto serie
+          \item El modelo de IA debe encontrarse ubicado en el directorio models/
+          \item El sistema debe encontrarse en estado inactivo (no puede haber otro análisis a la vez)
+        \end{itemize}\\
+      \textbf{Acciones}             &
+        \begin{enumerate}
+          \def\labelenumi{\arabic{enumi}.}
+          \tightlist
+          \item El usuario ejecuta la aplicación de HIVES.
+          \item El usuario acciona el control ``Iniciar Análisis''.
+          \item El sistema establece la conexión con el espectrómetro por el puerto serie seleccionado
+          \item El sistema inicia y completa la captura automatizada de los datos del espectrómetro.
+          \item El sistema computa las métricas de clasificación (categoría de la miel, índice de confianza del modelo, etc.)
+          \item El sistema renderiza los resultados en la interfaz gráfica.
+          \item El sistema persiste los datos del análisis en la base de datos local de forma transparente.
+        \end{enumerate}\\
+      \textbf{Postcondición}        &
+        \begin{itemize}
+          \tightlist
+          \item Los datos brutos y procesados del análisis se quedan registrados en el histórico
+          \item El usuario dispone de los resultados visuales en pantalla
+          \item El sistema retorna a un estado de disponibilidad para nuevos análisis o exportaciones
+        \end{itemize}\\
+      \textbf{Excepciones}          &
+        \begin{itemize}
+          \tightlist
+          \item \textbf{E1} Si no se detecta el espectrómetro, el sistema interrumpe el flujo, muestra un cuadro de diálogo de error y solicita verificar la conexión física.
+          \item \textbf{E2} Si se detecta un fallo en la carga del modelo de IA, el sistema notifica la incidencia y bloquea la ejecución de análisis.
+          \item \textbf{E3} Ante un error durante la adquisición de datos, el sistema aborta la operación y retorna al estado inicial de forma segura
+        \end{itemize}\\
+      \textbf{Importancia}          & Alta \\
+      \bottomrule
+    \end{longtable}
+\end{center}
+% Caso de Uso 2 -> Generar y Exportar Reporte PDF
+\begin{center}
+    \small
+    \begin{longtable}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+      \caption{CU-02 Generar y Exportar Reporte PDF.}\label{tabla:CU-02}\\
+      \toprule
+      \textbf{CU-02} & \textbf{Generar y Exportar Reporte PDF}\\
+      \otoprule
+      \endfirsthead
+      \multicolumn{2}{l}{\small\slshape continúa desde la página anterior}\\
+      \toprule
+      \textbf{CU-02} & \textbf{Generar y Exportar Reporte PDF}\\
+      \otoprule
+      \endhead
+      \hline
+      \multicolumn{2}{r}{\small\slshape continúa en la página siguiente}\\
+      \endfoot
+      \bottomrule
+      \endlastfoot
+      \textbf{Versión}              & 1.0 \\
+      \textbf{Autor}                & Diego Alonso Soria \\
+      \textbf{Requisitos asociados} & RF-06, RF-07 \\
+      \textbf{Descripción}          & El usuario exporta los resultados de un análisis en formato PDF para su archivo documental o distribución externa. El reporte integra información técnica relevante recabada durante la prueba. \\
+      \textbf{Precondición}         &
+        \begin{itemize}
+          \tightlist
+          \item Debe existir, al menos, un análisis completo en memoria o registro en el histórico local.
+          \item El sistema debe contar con permisos de escritura sobre el directorio de destino del sistema de archivos.
+        \end{itemize}\\
+      \textbf{Acciones}             &
+        \begin{enumerate}
+          \def\labelenumi{\arabic{enumi}.}
+          \tightlist
+          \item El usuario selecciona un análisis específico (ya sea el recién finalizado o uno extraído del histórico).
+          \item El usuario acciona el control ``Generar Reporte PDF''.
+          \item El sistema extrae de la base de datos los campos requeridos: fecha y hora, resultado de clasificación, métricas del espectrómetro y métricas del modelo.
+          \item El sistema genera un documento PDF aplicando la plantilla estructurada predefinida.
+          \item El sistema invoca el cuadro de diálogo del sistema operativo para solicitar la ruta de guardado.
+          \item El sistema guarda el archivo PDF en el directorio especificado por el usuario.
+        \end{enumerate}\\
+      \textbf{Postcondición}        &
+        \begin{itemize}
+          \tightlist
+          \item El archivo PDF se genera exitosamente y se almacena en el disco del usuario.
+          \item El documento queda disponible para su consulta externa, impresión o distribución
+        \end{itemize}\\
+      \textbf{Excepciones}          &
+        \begin{itemize}
+          \tightlist
+          \item \textbf{E1} Si el sistema carece de permisos de escritura en la ruta especificada, se emite una alerta y se solicita seleccionar un directorio alternativo.
+          \item \textbf{E2} En caso de fallo interno en la biblioteca de generación de PDFs, el sistema captura la excepción, notifica al usuario y registra el evento en el log de errores.
+        \end{itemize}\\
+      \textbf{Importancia}          & Alta \\
+      \bottomrule
+    \end{longtable}
+\end{center}
+% Caso de Uso 3 -> Consultar histórico de análisis
+\begin{center}
+    \small
+    \begin{longtable}{ p{0.21\columnwidth} p{0.71\columnwidth} }
+      \caption{CU-03 Consultar Histórico de Análisis.}\label{tabla:CU-03}\\
+      \toprule
+      \textbf{CU-03} & \textbf{Consultar Histórico de Análisis}\\
+      \otoprule
+      \endfirsthead
+      \multicolumn{2}{l}{\small\slshape continúa desde la página anterior}\\
+      \toprule
+      \textbf{CU-03} & \textbf{Consultar Histórico de Análisis}\\
+      \otoprule
+      \endhead
+      \hline
+      \multicolumn{2}{r}{\small\slshape continúa en la página siguiente}\\
+      \endfoot
+      \bottomrule
+      \endlastfoot
+      \textbf{Versión}              & 1.0 \\
+      \textbf{Autor}                & Diego Alonso Soria \\
+      \textbf{Requisitos asociados} & RF-09, RF-10 \\
+      \textbf{Descripción}          & El usuario accede al repositorio de análisis previos registrados en el sistema, disponiendo de herramientas de filtrado para la localización de registros específicos. \\
+      \textbf{Precondición}         &
+        \begin{itemize}
+          \tightlist
+          \item La base de datos local debe contener, como mínimo, un registro de análisis.
+          \item El usuario debe haber navegado hasta el módulo de histórico en la interfaz gráfica.
+        \end{itemize}\\
+      \textbf{Acciones}             &
+        \begin{enumerate}
+          \def\labelenumi{\arabic{enumi}.}
+          \tightlist
+          \item El usuario acciona la pestaña o botón ``Ver Histórico'' en la navegación principal.
+          \item El sistema lanza una consulta a la base de datos para recuperar los registros almacenados.
+          \item El sistema despliega una tabla o listado resumen conteniendo: fecha, tipo de miel y nivel de confianza predictiva.
+          \item El usuario introduce parámetros en los controles de filtrado (rango temporal, categoría específica, umbral de confianza).
+          \item El sistema procesa los filtros y refresca la vista, mostrando exclusivamente los registros coincidentes.
+          \item El usuario selecciona una fila del histórico para desplegar su información extendida o derivar al flujo de exportación PDF (CU-02).
+        \end{enumerate}\\
+      \textbf{Postcondición}        &
+        \begin{itemize}
+          \tightlist
+          \item El usuario obtiene una vista refinada de los análisis históricos adaptada a sus criterios de búsqueda.
+          \item El sistema mantiene el estado de la vista para permitir la inspección en detalle de los registros listados.
+        \end{itemize}\\
+      \textbf{Excepciones}          &
+        \begin{itemize}
+          \tightlist
+          \item \textbf{E1} Si la base de datos se encuentra vacía, el sistema muestra un indicador visual (estado vacío) notificando la ausencia de datos históricos.
+          \item \textbf{E2} Si la combinación de filtros aplicados resulta en un conjunto vacío, el sistema indica claramente que ``No se han encontrado coincidencias''.
+        \end{itemize}\\
+      \textbf{Importancia}          & Media \\
+      \bottomrule
+    \end{longtable}
+\end{center}
+\clearpage
+\subsection{Resumen de Requisitos}
+El sistema HIVES ha sido formalmente especificado mediante 11 requisitos funcionales y 9 requisitos no funcionales, abarcando la totalidad de las características esenciales para garantizar el análisis automatizado de muestras de miel combinando espectrometría e Inteligencia Artificial
+
+Los tres casos de uso principales (Analizar Muestra, Generar Reporte y Consultar Histórico) definen el núcleo operativo de la aplicación y se establecen como el pilar fundamental sobre el cual se desarrollará el diseño de la arquitectura software (Apéndice C) y se planificarán las pruebas funcionales (Apéndice D).
+
+La correcta implementación de las especificaciones detalladas en este documento aseguran la consecución del objetivo principal del proyecto: reducir los costes y tiempos operativos del análisis apícola a través de la automatización inteligente, preservando en todo momento altos estándares de usabilidad, eficiencia algorítmica y fiabilidad.

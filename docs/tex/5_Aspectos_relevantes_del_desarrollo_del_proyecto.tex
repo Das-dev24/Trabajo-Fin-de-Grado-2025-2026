@@ -1,0 +1,102 @@
+\capitulo{5}{Aspectos relevantes del desarrollo del proyecto}
+
+En este capítulo se exponen y justifican las decisiones técnicas, metodológicas e instrumentales más críticas adoptadas durante la ejecución práctica del sistema HIVES. En este apartado se argumentarán detalladamente las soluciones de ingeniería de software aplicadas para resolver las problemáticas reales detectadas durante el transcurso del proyecto, prestando especial atención a la interacción física con el sensor óptico y a las severas restricciones algorítmicas impuestas por el volumen del conjunto de datos empírico disponible.
+
+\section{Construcción empírica del conjunto de datos y protocolo de muestreo}
+
+Uno de los desafíos prácticos más significativos y complejos del presente Trabajo de Fin de Grado ha sido la creación, limpieza y consolidación de un conjunto de datos (\textit{dataset}) propio y representativo. A diferencia de múltiples proyectos de aprendizaje automático convencional que se nutren de repositorios masivos preexistentes o de simulaciones públicas estandarizadas, el correcto funcionamiento del sistema HIVES requería que el conjunto de datos de entrenamiento fuese obtenido nativamente por el propio dispositivo diseñado.
+
+Para garantizar la reproducibilidad analítica y asegurar que el sensor multicanal AS7265x capturara firmas espectrales estables y consistentes, se diseñó un estricto protocolo de preparación fisicoquímica e instrumental de las muestras:
+
+\begin{itemize}
+    \item \textbf{Acondicionamiento térmico y físico de la matriz:} Antes de realizar cualquier lectura espectral, cada muestra biológica de miel fue sometida a un proceso de tratamiento térmico sostenido a una temperatura controlada de $50^\circ\text{C}$ durante un periodo ininterrumpido de 24 horas. La miel, al ser una solución acuosa sobresaturada de azúcares, presenta una alta tendencia termodinámica a la cristalización. Estos microcristales actúan como centros de dispersión óptica (fenómenos de dispersión de Mie y Rayleigh) que alteran drásticamente la reflectancia espectral. El tratamiento térmico resulta crítico para homogeneizar completamente la matriz fluida, estandarizar su índice de refracción y reducir las microburbujas de aire atrapadas, evitando así refracciones anómalas durante la incidencia de los haces de luz.
+    
+    \item \textbf{Calibración de referencia y supresión de corriente oscura (\textit{Dark Current}):} Previo a la inserción de las muestras orgánicas, el sistema de captura fue sometido a rutinas de calibración de línea base. Esto incluyó la medición de la reflectancia y transmitancia en vacío (\textit{blank calibration}) para aislar la interferencia de la luz ambiental residual, así como la cuantificación del ruido  intrínseco de los fotodiodos en ausencia total de iluminación (\textit{dark current correction}). Estos valores de compensación se sustrajeron algorítmicamente de las mediciones finales para garantizar la linealidad de la respuesta sensórica.
+    
+    \item \textbf{Disposición instrumental y aislamiento:} Tras finalizar la fase de acondicionamiento e igualar gradualmente la temperatura con el ambiente del laboratorio para evitar corrientes de aire, las muestras se transfirieron a cubetas estandarizadas de análisis óptico. Estas cubetas se posicionaron en el prototipo, diseñado específicamente para aislar la muestra de la contaminación lumínica externa.
+    
+    \item \textbf{Configuración y parametrización de la captura digital:} Se estableció un tiempo fijo de exposición activa e integración de 15 segundos por ciclo de lectura analógico-digital. Este intervalo de sobremuestreo (\textit{oversampling}) permite promediar temporalmente las lecturas, mitigando el impacto del ruido de disparo (\textit{shot noise}) inherente a los semiconductores del sensor. Durante esta ventana, el prototipo registró la respuesta espectral sobre los 18 canales discretos distribuidos entre los 410~nm y los 940~nm, abarcando las interacciones por reflectancia y transmitancia lumínica.
+\end{itemize}
+
+Como resultado directo de este exhaustivo trabajo de campo, condicionado fuertemente por las limitaciones temporales estrictas del calendario académico y por la escasez logística de muestras certificadas mediante análisis melisopalinológico oficial, se consolidó un conjunto empírico final compuesto por \textbf{42 muestras útiles}. Aunque este tamaño poblacional es reducido bajo los estándares tradicionales de la ciencia de datos masivos, constituye un punto de partida empírico de incalculable valor para la validación funcional del hardware y la arquitectura de la información del sistema. Dichas mediciones se orquestaron siguiendo el esquema de comunicaciones ilustrado a continuación:
+
+\imagentamano{img/Memoria/cadena_puerto_serie.png}{Cadena de comunicación hardware-software del sistema HIVES: desde el sensor AS7265x hasta la capa de inferencia de la aplicación de escritorio. Fuente: Elaboración Propia.}{0.8}
+
+\section{Estudio comparativo, generación de datos sintéticos y estrategia algorítmica}
+
+La disponibilidad de un régimen de escasez extrema de datos, limitado a únicamente 42 firmas espectrales, introduce un riesgo metodológico de primer orden en el modelado predictivo: el sobreajuste (\textit{overfitting}) provocado por la \textit{maldición de la dimensionalidad} (\textit{curse of dimensionality}). Al proyectar 42 muestras sobre un espacio vectorial de 18 dimensiones (canales espectrales), el espacio queda escasamente poblado. Si estos vectores se inyectan directamente en un modelo matemático de caja negra de alta complejidad computacional, el sistema memorizará el ruido y las trazas específicas de cada muestra exacta, destruyendo por completo su capacidad de generalización operativa ante nuevas lecturas en un entorno real.
+
+Para solventar esta problemática técnica aplicando principios de ingeniería de software robusta, se diseñó un flujo algorítmico estructurado en dos grandes fases complementarias: la síntesis controlada de datos y la evaluación comparativa de arquitecturas de aprendizaje profundo frente a modelos de ensamblado clásico.
+
+\subsection{Generación de datos sintéticos mediante difusión gaussiana}
+
+Ante la imposibilidad de expandir el tamaño muestral real, se aplicó una estrategia de \textbf{aumento de datos sintéticos} basada en la inyección de \textbf{ruido gaussiano}~\cite{bjerrum:spectral}. Esta técnica se fundamenta en la premisa de que las desviaciones instrumentales de un sensor óptico (ruido electrónico, ligeras variaciones en la intensidad de emisión del LED o micrométricas alteraciones en el posicionamiento de la cubeta) siguen típicamente una distribución estadísticamente normal.
+
+El procedimiento consistió en tomar cada una de las 42 firmas espectrales reales como el vector de medias (centroide) de una distribución normal multivariante. A partir de ella, se generó un enjambre de muestras artificiales añadiendo ruido gaussiano independiente a cada uno de los 18 canales, acotando la desviación típica empíricamente para no solapar los clústeres de clases distintas. El dataset resultante (\texttt{dataset\_completo\_40036\_v2.csv}) alcanzó aproximadamente \textbf{40\,036 muestras}, distribuidas equitativamente entre las cinco clases consideradas (Milflores, Retama, Miel de Bosque, Jaramago y Miel Industrial). Este proceso conserva la macroestructura probabilística original, proporcionando el volumen tensorial mínimo requerido para que los algoritmos de optimización por descenso de gradiente puedan iterar sin colapsar en las primeras épocas de entrenamiento.
+
+\subsection*{Enfoque de aprendizaje profundo con destilación de conocimiento (TensorFlow y Keras)}
+
+En primera instancia, y con el objetivo de validar la arquitectura base del software, se implementaron redes neuronales densas (\textit{Multi-Layer Perceptron}) haciendo uso de TensorFlow y Keras. El propósito de este bloque algorítmico no se limitó a la búsqueda de precisión absoluta inmediata, sino que sirvió para cumplir con hitos críticos de integración continua:
+
+\begin{itemize}
+    \item \textbf{Validación de escalabilidad arquitectónica:} Asegurar que la capa modular de la aplicación de escritorio (GUI, base de datos local embebida y controladores lógicos) estuviera completamente preparada para instanciar el intérprete de Python, cargar grafos computacionales complejos en memoria y realizar inferencias tensoriales sin bloquear el hilo principal de ejecución gráfica (\textit{Main Thread}).
+    \item \textbf{Evaluación de hiperparámetros y optimización:} Analizar la convergencia empírica del optimizador Adam~\cite{kingma2015adam} y monitorizar la velocidad de propagación del gradiente utilizando la función de activación Swish, comprobando su superioridad matemática frente a arquitecturas clásicas ReLU en el modelado de espacios de características espectrales continuas.
+\end{itemize}
+
+El modelo final integrado en producción aplica un paradigma avanzado de \textbf{destilación de conocimiento} (\textit{knowledge distillation}) en dos etapas:
+
+\begin{enumerate}
+    \item \textbf{Generación de \textit{soft labels} con XGBoost.} Se entrenó un clasificador \texttt{XGBClassifier} mediante validación cruzada y optimización exhaustiva (\texttt{GridSearchCV}) sobre su profundidad máxima de árbol, tasa de aprendizaje (\textit{learning rate}) y ratios de submuestreo. Las probabilidades predichas por este modelo maestro sobre el conjunto de entrenamiento no son clasificaciones categóricas duras (0 o 1), sino vectores de probabilidades suavizadas (\textit{soft labels}). Estas etiquetas capturan la similitud oculta o solapamiento espectral intrínseco entre clases botánicas afines (el llamado \textit{dark knowledge}).
+
+    \item \textbf{Entrenamiento de la red neuronal por imitación.} Una red neuronal densa (estudiante) ---con capas ocultas de 128, 64 y 32 neuronas--- se entrenó exclusivamente para reproducir dichas distribuciones de probabilidad multiclase, minimizando la función de entropía cruzada categórica respecto a las \textit{soft labels} originadas por XGBoost. El modelo resultante (\texttt{mejor\_modelo.keras}) se compila y almacena junto a un mapeador estructural en formato JSON (\texttt{clases.json}), garantizando la decodificación determinista de las inferencias en tiempo de ejecución de la aplicación.
+\end{enumerate}
+
+Esta topología permite que la red neuronal ---estructuralmente más veloz en la fase de inferencia y matemáticamente más predecible dentro del encapsulado de la aplicación de escritorio--- herede los sesgos inductivos protectores y la alta capacidad discriminativa del ensamblado XGBoost, logrando un compromiso tecnológico óptimo entre complejidad de cómputo y resiliencia analítica.
+
+\subsection*{Enfoque de aprendizaje automático clásico: Bosques Aleatorios (scikit-learn)}
+
+Como contramedida directa a la escasez de datos reales y para proveer una alternativa algorítmica de comprobada fiabilidad, la experimentación se complementó con modelos de aprendizaje supervisado clásico basados en ensamblados de árboles de decisión (\textit{Random Forests}), orquestados bajo la biblioteca \texttt{scikit-learn}~\cite{pedregosa2011sklearn}. En el caso específico de este trabajo se empleó su variante \texttt{cuML}~\cite{rapids_cuml}, perteneciente al ecosistema RAPIDS de NVIDIA, que ofrece una interfaz compatible con \texttt{scikit-learn} pero con ejecución acelerada mediante GPU.
+
+La integración técnica de este enfoque aporta dos ventajas defensivas fundamentales frente a la vulnerabilidad del dataset original:
+
+\begin{itemize}
+    \item \textbf{Resiliencia estructural ante el ruido:} Al aplicar técnicas de agregación de arranque empírico (\textit{bagging}) y selección estocástica de subconjuntos de canales espectrales para cada división interna de nodo, el algoritmo promedia las decisiones de múltiples árboles matemáticamente ortogonales. Esto neutraliza las fluctuaciones aleatorias del sensor analógico y demuestra una excepcional tolerancia a valores atípicos (\textit{outliers}).
+    \item \textbf{Validación cruzada estratificada:} Para explotar eficientemente la información empírica sin sesgar los resultados ni incurrir en fugas de información, se implementó una partición rigurosa de \textit{5-fold cross-validation} sobre las 42 muestras originales. Se seleccionó el parámetro $k=5$ como el equilibrio idóneo matemático que garantiza conjuntos de validación suficientemente poblados para calcular métricas fiables (como \textit{Precision}, \textit{Recall} y \textit{F1-Score}, esenciales ante posibles desbalances de clase), asegurando que el modelo se evalúe sistemáticamente contra espectros inéditos en su ciclo de entrenamiento.
+\end{itemize}
+
+\begin{table}[h]
+  \centering
+  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X c c}
+    \toprule
+    \textbf{Modelo} & \textbf{Librería} & \textbf{Exactitud (CV)} & \textbf{T. entrenamiento} \\
+    \midrule
+    Red neuronal densa (MLP) & TensorFlow/Keras & 87\,\% & 15 min \\ \hline
+    Bosques Aleatorios       & scikit-learn / cuML  & 89\,\% &  7 min \\ \hline
+    XGBoost                  & xgboost          & 92\,\% &  7 min \\ \hline
+    Modelo Híbrido           & XGBoost + TensorFlow &  91,5\,\% & 10 min \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Comparativa de los modelos evaluados en HIVES. La exactitud se obtuvo mediante validación cruzada de 5 pliegues. Los tiempos de entrenamiento corresponden a la ejecución paralela asistida por GPU en Google Colab.}
+\end{table}
+
+\FloatBarrier
+
+\section{Análisis crítico de las limitaciones estadísticas del modelo}
+
+Gracias al riguroso diseño de ingeniería de software expuesto en los epígrafes anteriores, el sistema HIVES unifica con éxito la solidez operativa que proporcionan los algoritmos clásicos con la escalabilidad estructural proyectada por las redes neuronales. La generación del dataset sintético ha cumplido su propósito fundamental: asentar y validar toda la infraestructura de bases de datos, flujos de serialización de tensores y gestión de memoria requerida para el funcionamiento estable del aplicativo en fase de producción.
+
+No obstante, desde la estricta perspectiva del rigor científico, metodológico y metrológico, es una exigencia académica señalar que las métricas de exactitud obtenidas (Tabla 5.1) deben interpretarse bajo un prisma puramente arquitectónico y no como un indicador concluyente de precisión agronómica comercial. El conjunto empírico base, compuesto por \textbf{únicamente 42 muestras reales}, representa un volumen estadístico significativamente insuficiente frente a las necesidades de convergencia empírica que dictan los estándares del \textit{Deep Learning} aplicado a la espectroscopía de alta resolución~\cite{goodfellow:deep}.
+
+La veracidad de los porcentajes de acierto algorítmico reportados, alcanzando un 92 \% máximo en XGBoost (modelo empleado como base para la primera fase del algoritmo híbrido del desarrollo final) se encuentra  sujeta a severas limitaciones estructurales que deben ser reconocidas y documentadas:
+
+\begin{itemize}
+    \item \textbf{Riesgo crítico de sobreajuste inducido (Fuga de datos indirecta):} Si bien el ruido gaussiano inyectado en el preprocesamiento preserva la matriz de covarianza de la firma real, las cerca de 40\,000 muestras artificiales generadas no materializan nuevas variaciones botánicas reales (como diferencias en el estrés hídrico de la planta, maduración enzimática de la miel o variabilidad estacional), sino simples traslaciones y dispersiones matemáticas locales. Al entrenar y validar sobre transformaciones sintéticas derivadas de solo 42 puntos de origen físico, existe una alta probabilidad teórica de que los modelos de ensamblado estén reconociendo la "huella dactilar analógica" de esas 42 muestras específicas y sus vecindades esféricas inmediatas, inflando de forma indirecta el rendimiento reportado ante métricas de validación rutinaria.
+    
+    \item \textbf{Variabilidad botánica no modelada linealmente:} La huella composicional de una clase de miel específica (por ejemplo, alteraciones sutiles en los picos de absorción de polifenoles o flavonoides dependiendo de la microrregión geográfica de pecoreo) es un fenómeno termodinámico y bioquímico altamente no lineal. El aumento de datos masivo mediante difusión gaussiana asume intrínsecamente una variación lineal e isotrópica en la sensibilidad de los canales del sensor, lo que no refleja de manera fiel las desviaciones multidimensionales reales que ocurrirían al recolectar mieles de la misma especie botánica en contextos ambientales dispares.
+
+    \item \textbf{Ausencia de un conjunto de prueba empírico independiente (\textit{Hold-out Test Set}):} La literatura metodológica de validación algorítmica exige de forma ineludible la segregación de un conjunto de prueba completamente ciego y de procedencia empírica certificada. Debido a la restricción logística insalvable impuesta por las 42 muestras disponibles, su división matemática fragmentaría excesivamente la representación de las clases minoritarias (resultando hipotéticamente en apenas 1 o 2 muestras por clase destinadas a la fase de testeo). Esta fragmentación hace virtualmente imposible la extracción de un intervalo de confianza estadísticamente significativo o de una matriz de confusión representativa que soporte escrutinio pericial.
+\end{itemize}
+
+En conclusión, la argumentación de este capítulo corrobora que el proyecto constituye una \textbf{prueba de concepto tecnológica exitosa y una validación funcional integral del diseño arquitectónico del software de HIVES}. Las pruebas demuestran de forma incontestable que la cadena de ingeniería completa —desde la excitación del fotodiodo en el encapsulado hardware de la capa física, pasando por la transcodificación analógico-digital, hasta la ingesta, serialización y el renderizado final de la inferencia multiclase en la interfaz visual de Python— opera sin cuellos de botella asíncronos ni fallos de integración estructurales. 
+
+La declaración proactiva de estas limitaciones algorítmicas responde a las buenas prácticas éticas exigibles en la ingeniería de sistemas críticos. Para que el núcleo analítico logre la validez pericial o metrológica requerida para su explotación comercial definitiva en la industria agroalimentaria, el requisito indispensable será la paulatina sustitución de este dataset sintético por una base de datos masiva compuesta por cientos de muestras reales, certificadas unívocamente mediante laboratorio convencional. Esta limitación de alcance asienta las bases directas y pragmáticas para la futura hoja de ruta y continuación investigadora del proyecto, tal y como se detalla en profundidad en el Capítulo 7 de conclusiones y líneas de trabajo futuro.

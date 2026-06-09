@@ -1,0 +1,160 @@
+\apendice{Especificación de diseño}
+
+\section{Introducción}
+Una vez realizada la exhaustiva formalización de los requisitos funcionales y no funcionales de la aplicación, así como la definición de los casos de uso que acotan las interacciones del actor principal, el presente apéndice se centra en las especificaciones de diseño interno. Estas especificaciones recogen y detallan las directrices técnicas, la arquitectura de software, los paradigmas de concurrencia y la pila tecnológica (\textit{tech stack}) que sustentan la materialización del proyecto. El objetivo de este capítulo es proporcionar una justificación instrumental y algorítmica profunda para cada decisión adoptada, demostrando la viabilidad técnica y el rigor aplicados en la ingeniería del sistema HIVES.
+
+\section{Diseño de datos y capa de persistencia}
+
+En lo referente a la gestión de la información del proyecto, la arquitectura de datos se ha concebido bajo el principio de separación de responsabilidades y la inmutabilidad de la lectura física. La información se divide en dos dominios lógicos principales: los datos empíricos obtenidos en bruto que han de ser almacenados para garantizar la trazabilidad pericial, y los datos procesados y normalizados que son consumidos directamente por los tensores del modelo predictivo.
+
+Para materializar la capa de persistencia local se ha implementado el motor de bases de datos relacional embebido \textbf{SQLite}. La adopción de esta tecnología, frente a alternativas cliente-servidor tradicionales como PostgreSQL o MySQL, se fundamenta en un análisis estricto de los requisitos de despliegue. Al ser HIVES una aplicación de escritorio de ámbito monopuesto, SQLite \cite{sqlite2024whentouse} permite encapsular el esquema relacional completo, los índices y los registros en un único archivo físico dentro del sistema de ficheros del equipo anfitrión. Esta característica garantiza una portabilidad absoluta y elimina la fricción operativa que supondría obligar al usuario final a aprovisionar, configurar y mantener un demonio de base de datos externo. Adicionalmente, SQLite asegura el cumplimiento de las propiedades transaccionales ACID (Atomicidad, Consistencia, Aislamiento y Durabilidad)\cite{sqlite2024acid}, protegiendo el histórico de análisis frente a corrupciones de escritura derivadas de cortes de suministro eléctrico o caídas abruptas del sistema.
+
+Desde el punto de vista del rendimiento computacional, se ha prescindido deliberadamente de mapeadores objeto-relacional (ORM) de alto nivel (como SQLAlchemy). La interacción con la base de datos se realiza mediante la inyección directa de consultas SQL puras parametrizadas. Esta decisión arquitectónica minimiza el \textit{overhead} de traducción de objetos, reduce el consumo de memoria RAM de la aplicación y otorga un control determinista sobre los tiempos de inserción, lectura y filtrado del histórico, un factor de suma relevancia para garantizar la inmediatez de respuesta exigida por la interfaz gráfica.
+
+A nivel de esquema, una de las decisiones de diseño más críticas reside en el tratamiento de los 18 canales espectrales capturados por el sensor AS7265x. En lugar de generar un esquema altamente acoplado con 18 columnas numéricas individuales, los valores se agrupan y se almacenan en formato de \textit{array} serializado (típicamente mediante notación JSON) dentro de una única columna denominada \texttt{espectro\_raw} en la tabla de \texttt{muestras}. Este patrón de diseño estructural, conocido como \textit{Serialized LOB (Large Object) \cite{fowler2002eap}}, proporciona una notable flexibilidad frente al cambio. Si en futuras iteraciones del proyecto se decide actualizar el hardware espectrométrico a un sensor de 36 o 72 canales, el esquema relacional de la base de datos permanecerá inalterado, requiriendo modificaciones únicamente en la capa de serialización lógica. Además, la preservación íntegra del espectro en bruto actúa como un mecanismo de auditoría inmutable: ante cualquier actualización futura de los algoritmos de normalización, el conjunto de datos empírico original podrá ser extraído intacto para proceder a nuevos ciclos de reentrenamiento.
+
+A continuación, se presenta el modelo conceptual de la base de datos:
+
+\imagentamano{img/Graficos/uml_bd.png}{Modelo conceptual y diagrama de tablas de la base de datos local. Fuente: Elaboración Propia.}{0.8}
+
+En contraposición a los datos en bruto, los datos inyectados en el modelo de Inteligencia Artificial requieren un preprocesamiento algorítmico estricto. Las lecturas provenientes de \texttt{espectro\_raw}  son extraídas y sometidas a un \textit{pipeline} de normalización matemática para estabilizar las varianzas entre canales, mitigar el ruido analógico de los fotodiodos y acotar los gradientes numéricos, garantizando así la convergencia de la red neuronal.
+
+\imagentamano{img/Graficos/er_hives.png}{Diagrama Entidad-Relación de la base de datos local. Fuente: Elaboración Propia.}{0.65}
+
+\section{Diseño procedimental y flujo de ejecución}
+
+\subsection*{Descripción analítica del pipeline de procesamiento}
+
+El diseño procedimental del sistema HIVES define el ciclo de vida del dato, desde su conversión analógico-digital en la capa física hasta su representación categórica en la interfaz. El flujo principal de ejecución sigue una arquitectura de procesamiento en tubería (\textit{pipeline}) conformada por seis etapas lógicas secuenciales: (1) captura sensórica asíncrona, (2) almacenamiento estructural en bruto, (3) normalización vectorial, (4) inferencia probabilística mediante Inteligencia Artificial, (5) generación programática de reportes y (6) persistencia relacional del dictamen final.
+
+El proceso global se desencadena cuando el actor principal solicita el análisis de una muestra de miel a través de la interfaz gráfica. La petición viaja hacia la pasarela hardware (el microcontrolador Arduino Uno), que efectúa la adquisición del espectro óptico temporalmente promediado. Una vez recibida la trama de datos, la capa de software asume el control absoluto del flujo, garantizando que cada etapa se complete de forma atómica antes de derivar el flujo de control hacia la siguiente subrutina.
+
+\subsection*{Módulo de captura de espectro y telemetría}
+
+Este módulo es el responsable de gestionar la capa de enlace y comunicación de bajo nivel con el hardware espectrométrico. A nivel electrónico, el sensor \textbf{SparkFun Triad AS7265x} es gobernado por la lógica interna del microcontrolador (programado en lenguaje C/C++) a través de un bus síncrono \textbf{I\textsuperscript{2}C}, gestionado externamente mediante la librería \texttt{SparkFun\_AS7265X\_Arduino\_Library}. Sin embargo, la comunicación entre este hardware y el ordenador anfitrión exige un diseño procedimental más sofisticado en la capa de software:
+
+\begin{itemize}
+    \item \textbf{Gestión de puerto serie virtual:} El establecimiento de la comunicación bidireccional se orquesta empleando la biblioteca \textbf{PySerial\cite{pyserial2023docs}}. Su utilización permite instanciar un canal de comunicación asíncrono sobre el estándar USB, proveyendo una API abstracta que oculta las complejidades de implementación subyacentes entre el gestor de dispositivos de Windows, las interfaces \texttt{tty} de Linux y los entornos macOS.
+    \item \textbf{Gestión de búferes y sincronización:} Previo a la solicitud de cualquier lectura, el controlador vacía activamente los búferes de entrada y salida del puerto serie (\textit{flush}). Esta acción procedimental previene la lectura de tramas huérfanas o espectros residuales (\textit{stale data}) pertenecientes a ejecuciones abortadas con anterioridad, garantizando la pureza temporal de la nueva muestra.
+    \item \textbf{Validación estructural por dimensionalidad:} Tras la adquisición de la cadena de texto serie, los datos son decodificados (típicamente desde UTF-8) y troceados mediante delimitadores. El módulo realiza una comprobación estricta de cardinalidad: la matriz resultante debe contener exactamente 18 campos numéricos de coma flotante representativos de las bandas ópticas; cualquier desviación (producto de una caída de tensión o ruido eléctrico en el bus) provoca el descarte inmediato de la trama y la invocación de una rutina de reintento.
+\end{itemize}
+
+\subsection*{Módulo de almacenamiento de entrada (\textit{Data Ingestion})}
+
+Validada la captura espectral, la responsabilidad se delega al módulo de ingesta, encargado de la primera consolidación permanente de la información:
+
+\begin{itemize}
+    \item \textbf{Transacción atómica:} El guardado del array en la tabla \texttt{muestras} (columna \texttt{espectro\_raw} ) se ejecuta empaquetado en una transacción atómica explícita de SQLite (\texttt{BEGIN TRANSACTION}). Esto asegura que, si el sistema colapsa durante la escritura del estado de calibración u otros metadatos asociados, la inserción se deshará (\textit{rollback}) por completo, impidiendo la generación de registros espectrales huérfanos.
+    \item \textbf{Generación de \textit{Primary Keys}:} El motor de persistencia asigna un identificador único correlativo (clave primaria autoincremental) que acompañará al vector de datos durante el resto de su ciclo de vida en memoria, sirviendo de ancla referencial para el resultado analítico posterior.
+\end{itemize}
+
+\subsection*{Módulo de normalización matemática y acondicionamiento tensorial}
+
+Con el fin de compatibilizar la naturaleza discreta de los datos capturados con los requisitos formales de las arquitecturas de redes neuronales, este componente ejecuta transformaciones algebraicas críticas:
+
+\begin{itemize}
+    \item \textbf{Escalado numérico:} Los valores de intensidad de los fotodiodos presentan magnitudes brutas dispares dependientes del tiempo de integración. Se aplica un algoritmo de escalado (Min-Max o estandarización \textit{Z-score}\cite{hastie2009elements}, según los hiperparámetros serializados del modelo) para reducir las magnitudes al dominio de convergencia óptima de las funciones de activación, evitando la explosión o desvanecimiento del gradiente\cite{bengio2013difficulty}.
+    \item \textbf{Reestructuración matricial (\textit{Reshape}):} El vector unidimensional de $1\times18$ elementos es redimensionado dinámicamente para transformarse en un tensor de lote unitario (estructura $[1, 18]$), arquitectura obligatoria requerida por la capa \texttt{InputLayer} del grafo de TensorFlow.
+    \item \textbf{Transición estricta de tipos de datos (\textit{Casting}):} La lista genérica generada por el intérprete de Python es convertida forzosamente a una estructura matricial empleando el tipo de dato primitivo coma flotante de precisión simple (\texttt{float32}). La adopción de \texttt{float32} frente a \texttt{float64} reduce el tamaño del tensor a la mitad, aliviando la carga en los cachés del procesador y manteniendo un alineamiento directo con las implementaciones nativas optimizadas de los binarios compilados de TensorFlow bajo lenguaje C++.
+\end{itemize}
+
+\subsection*{Módulo de clasificación probabilística (Núcleo de Inteligencia Artificial)}
+
+Este componente encapsula la lógica matemática y algorítmica central del producto. La complejidad de este módulo se fundamenta en un extenso proceso previo de I+D en ingeniería de datos, materializado originalmente en \textbf{Jupyter Notebooks} ejecutados sobre aceleradores de hardware (GPU Nvidia) mediante la plataforma en la nube \textbf{Google Colab}. Dicho entorno garantizó la potencia de cálculo masiva necesaria para emplear bibliotecas aceleradas como \textbf{CuML} de Nvidia.
+
+El desafío primario abordado consistió en la superación de la escasez crítica del dataset empírico, limitado a 42 muestras de campo. La aplicación directa de modelos profundos sobre conjuntos de este tamaño conduce a escenarios de sobreajuste (\textit{overfitting}) extremos. Para mitigarlo, se programó un subsistema de aumento de datos basado en \textbf{difusión gaussiana}. Inyectando ruido normal multivariante controlado sobre las firmas reales, se sintetizó el \texttt{dataset\_completo\_40036\_v2.csv}, un conjunto de cerca de 40\,000 muestras que retiene la topología y covarianza de las clases botánicas originales, proporcionando la masa crítica computacional requerida para el descenso de gradiente.
+
+A nivel procedimental de despliegue, el modelo integrado en la aplicación de escritorio final opera basándose en una topología optimizada de \textbf{destilación de conocimiento (\textit{knowledge distillation}) \cite{hinton2015distilling}}, ejecutada en dos estadios formativos:
+
+\begin{enumerate}
+    \item \textbf{Capa de maestría algorítmica:} Un modelo de ensamblado de aceleración de gradiente basado en árboles de decisión (\textbf{XGBoost\cite{chen2016xgboost}}), configurado y optimizado en profundidad mediante validación cruzada estratificada (\textit{GridSearchCV} de 5 pliegues), procesó el dataset para generar distribuciones probabilísticas en lugar de predicciones de clase rígidas. Estos vectores enriquecidos, denominados \textit{soft labels}, contienen la topología difusa del problema espectral (por ejemplo, identificando similitudes sutiles entre una Miel de Bosque y un Milflores).
+    \item \textbf{Capa de imitación tensorial:} Posteriormente, una \textbf{red neuronal densa} implementada bajo el \textit{framework} \textbf{TensorFlow/Keras} ---con una arquitectura de descompresión y compresión dimensional progresiva de 128\,$\rightarrow$\,64\,$\rightarrow$\,32\,$\rightarrow$\,5 neuronas y funciones de activación ReLU, ReLU, ReLU y Softmax respectivamente --- fue entrenada exclusivamente para imitar las predicciones suavizadas del XGBoost. Esta técnica permite transferir la robustez estructural y la resistencia al ruido propia de los bosques aleatorios hacia una estructura de grafos neuronales deterministas.
+\end{enumerate}
+
+El archivo binario resultante de este proceso, \texttt{mejor\_modelo.keras}, es cargado en memoria RAM en tiempo de arranque de la aplicación. Para asegurar una decodificación agnóstica a la versión del modelo, el sistema se apoya en un mapeador dinámico inyectado en un archivo \texttt{clases.json}, que traduce de forma determinista el nodo de la capa \texttt{softmax} con máxima excitación algorítmica (\textit{argmax\cite{goodfellow2016deeplearning}}) a la cadena de texto nominativa de la clase botánica real.
+
+\subsection*{Módulo de emisión documental y reportes}
+
+Garantizando la dimensión pericial y de trazabilidad funcional del sistema en entornos agroalimentarios comerciales, el diseño procedimental contempla un subcomponente especializado en la emisión estandarizada de informes de resultados. La maquetación programática de la memoria técnica en formato PDF es ejecutada por la biblioteca \textbf{FPDF}. 
+
+La justificación de esta herramienta arquitectónica resulta clave: mientras que otras alternativas del ecosistema Python (como WeasyPrint o pdfkit) requieren la renderización previa de un DOM en formato HTML/CSS invocando motores pesados o ejecutables del sistema operativo, FPDF interactúa directamente con las primitivas de dibujo y flujos del estándar PDF. Esta decisión reduce la huella de memoria (\textit{memory footprint}) del proceso de exportación a márgenes casi nulos y evita dependencias de bibliotecas dinámicas (DLLs/.so) de terceros, lo que facilita enormemente el empaquetado final del ejecutable de la aplicación.
+
+\subsection*{Módulo de persistencia analítica de resultados}
+
+La fase terminal del ciclo de procesamiento consiste en la consolidación relacional del dictamen algorítmico, operando nuevamente de forma atómica sobre la base de datos local:
+
+\begin{itemize}
+    \item \textbf{Inserción de veredictos:} Se registra una nueva tupla en la tabla \texttt{predicciones}, almacenando tanto la clase categórica ganadora como el vector probabilístico completo (el nivel de confianza o certidumbre arrojado por la capa \texttt{softmax}).
+    \item \textbf{Cierre referencial:} Se inserta la operación en la tabla de \texttt{analisis}, vinculando estáticamente a través de claves foráneas (\textit{Foreign Keys}) la predicción obtenida con el espectro original almacenado en la etapa inicial. A este registro maestro se le adjunta el sello temporal (\textit{timestamp}), cerrando la cadena de custodia digital del análisis espectrométrico.
+\end{itemize}
+\newpage
+\subsection*{Resiliencia del flujo y gestión estructurada de excepciones}
+
+La ingeniería de un sistema de criticidad analítica exige una tolerancia a fallos (\textit{fault tolerance}) diseñada explícitamente y no delegada al manejo estándar de excepciones del intérprete. El sistema implementa políticas de \textit{fail gracefully} (falla elegante), asegurando que ninguna perturbación de hardware o software provoque el colapso catastrófico o cierre no autorizado de la aplicación principal. 
+
+\begin{table}[H]
+  \centering
+  \caption{Mapeo de criticidad de escenarios de error y estrategias de mitigación en el sistema HIVES.}
+  \label{tab:excepciones}
+  \begin{tabular}{p{3.5cm} p{3.5cm} p{7cm}}
+    \toprule
+    \textbf{Fallo o Excepción} & \textbf{Capa de Origen} & \textbf{Tratamiento Lógico y Procedimental} \\
+    \midrule
+    \textit{Timeout} Serie o Pérdida de HW & Módulo de enlace físico (Captura) & Aborto del hilo de lectura, purgado de \textit{buffers}, emisión de señal asíncrona de error al \textit{GUI} para notificación contextual al operador, registro exhaustivo en \textit{logger} del sistema. \\
+    Bloqueo SQL (\textit{Database Locked}) & Motor Relacional (Persistencia) & Backoff algorítmico con límite de reintentos. Si persiste el fallo de acceso I/O, el estado de la muestra se revierte en memoria (rollback) notificando incapacidad de escritura. \\
+    Dimensión tensorial malformada & Preprocesamiento (Normalización) & Bloqueo preventivo de la inferencia. Intercepción de excepción matricial y descarte de la firma espectral antes de ser inyectada en el modelo de Inteligencia Artificial. \\
+    Ausencia de grafo de IA (.keras) & Motor Predictivo (Clasificación) & Captura en inicialización \textit{early-fail}. Inhabilitación visual del botón de escaneo en la interfaz, solicitando reintegro del binario modelo. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\clearpage
+\subsection*{Diagramas formales de flujos lógicos y estructurales}
+
+Con el fin de proveer una modelización visual inequívoca del ciclo de vida detallado, se incluyen los esquemas formales generados en notación de Lenguaje Unificado de Modelado (UML):
+
+\imagentamano{img/Graficos/secuencia_hives.png}{Diagrama de secuencia UML del análisis de una muestra de miel. Se detalla la sincronía de las llamadas, los tiempos de vida de los objetos y la delegación a hilos de trabajo paralelos. Fuente: Elaboración Propia.}{1.1}
+\clearpage
+\imagentamano{img/Graficos/dfd_hives.png}{Diagrama de flujo de datos (DFD). Identificación de procesos, almacenes de persistencia temporales e interfaces de intercambio de estructuras de datos a través del sistema HIVES. Fuente: Elaboración Propia.}{0.60}
+
+\section{Diseño arquitectónico y aislamiento de capas}
+
+A nivel estructural macrosistemático, el código base ha sido modelado y codificado implementando estrictamente el patrón arquitectónico \textbf{Modelo-Vista-Controlador (MVC)~\cite{gamma1994design}}. Esta metodología de ingeniería de \textit{software} rige la distribución del código fuente, garantizando el principio de Responsabilidad Única (\textit{Single Responsibility Principle}) y un bajo acoplamiento estructural. 
+
+La adopción de \textbf{Python 3.10} como único lenguaje integrador, operando como núcleo tanto para el entorno estadístico del modelo como para el \textit{backend} aplicativo, justifica esta aproximación MVC, posibilitando la intercomunicación fluida en espacio de memoria compartida sin tener que lidiar con complejos \textit{bindings} o puentes de lenguajes externos (como ocurriría si el interfaz se desarrollase en C\# WPF o JavaFX frente a un motor predictivo en Python).
+
+Las tres responsabilidades modulares operan bajo la siguiente distribución de diseño:
+
+\begin{itemize}
+    \item \textbf{Capa de Presentación (Vista):} Materializada a través de las primitivas de \textbf{PyQt6}. Es una capa intencionadamente "tonta", desprovista de cualquier operación aritmética o lógica de negocio. Se limita a instanciar los \textit{widgets} (botones, gráficos, tablas), capturar las interrupciones del operador y redibujar componentes al recibir dictámenes calculados. También se planteó como alternativa el uso de PySide6 como solución a la licencia de PyQt6, pero se descartó a favor de PyQt6, para el que se encontró más documentación técnica  que facilitó su implementación.
+    \item \textbf{Capa de Orquestación (Controlador):} Actúa como el centro neurálgico (\textit{Brain}) de la aplicación. Inicializa las conexiones periféricas de puerto serie (\textbf{PySerial}), valida el estado de la comunicación y coordina el tráfico de información entre lo que el usuario solicita y los servicios que deben ejecutarse.
+    \item \textbf{Capa de Entidad lógicas (Modelo):} Sub-arquitectura que envuelve por completo toda la semántica del acceso a los ficheros locales, el control transaccional del \textbf{SQLite} y la encapsulación compleja del motor matemático de \textbf{TensorFlow}. Cualquier cambio futuro en el algoritmo de IA requerirá alteraciones únicas en el Modelo, permaneciendo totalmente opaco para las otras dos capas.
+\end{itemize}
+
+\subsection*{Patrón reactivo de comunicación: \textit{Signals and Slots}}
+
+Para materializar físicamente la separación MVC dentro del ecosistema Qt, el sistema implementa un enrutamiento de eventos mediante el potente paradigma de \textbf{\textit{Signals and Slots \cite{pyqt6signals2024}}} (señales y ranuras). Este mecanismo constituye una implementación segura para tipos (\textit{type-safe}) del clásico patrón de diseño \textit{Observer} (Observador).
+
+A diferencia de las arquitecturas basadas en \textit{callbacks} encadenados ---que frecuentemente derivan en problemas de mantenimiento y referencias circulares de memoria---, en PyQt6 un emisor que dispara una señal (\textit{signal}) ignora completamente quién está escuchando o si siquiera existe algún receptor suscrito. Simétricamente, la ranura receptora (\textit{slot}) ejecuta su bloque de código sin necesidad de mantener un puntero al objeto originario. En HIVES, el Controlador suscribe la funcionalidad analítica a la señal de \textit{click} de la Vista, mientras que la Vista vincula sus paneles de actualización gráfica a las señales de finalización arrojadas por el Controlador. Este aislamiento bidireccional garantiza un código limpio, auditable y de extrema facilidad para la inserción de pruebas unitarias.
+
+\subsection*{Gestión avanzada de concurrencia y subprocesos (\textit{QThread})}
+
+La ejecución de cálculos algebraicos complejos (como el avance secuencial a través de múltiples capas tensoriales en TensorFlow) y los bloqueos síncronos por entrada/salida de hardware (I/O, lectura asíncrona del puerto serie) requieren tiempos de computación de varios milisegundos o incluso segundos. Si estas lógicas se ejecutasen en el hilo predeterminado de la aplicación de Python, el bucle principal de eventos gráficos (\textit{Main Event Loop}) quedaría interrumpido indefinidamente, provocando la indeseada congelación visual de la interfaz (\textit{GUI freezing}) y la potencial marcación del programa como "No responde" por parte del sistema operativo anfitrión.
+
+Para erradicar esta problemática estructural, se implementa una programación concurrente rígida delegando las funciones pesadas hacia hilos de trabajo paralelos (\textit{Worker Threads}) administrados por la clase de interfaz \textbf{QThread\cite{qt6qthread2024}}. Se ha preferido el uso de \texttt{QThread} por encima de las librerías genéricas nativas de Python (\texttt{threading} o \texttt{asyncio}) por su seguridad intrínseca. En PyQt, el mecanismo de \textit{Signals and Slots} está diseñado para ser seguro entre hilos (\textit{thread-safe}): cuando un hilo secundario de procesamiento algorítmico termina su tarea, emite una señal que es encolada automáticamente y de manera segura en el bucle del hilo principal (\textit{Qt::QueuedConnection}), protegiendo el espacio de memoria y garantizando que las modificaciones gráficas (únicamente permitidas en el hilo principal por el \textit{framework} Qt) ocurran sin colisiones ni condiciones de carrera (\textit{race conditions}).
+
+\section{Herramientas de gestión del ciclo de vida, calidad de código y empaquetado}
+
+La garantía del éxito de un proyecto de ingeniería de software moderno no depende exclusivamente de las elecciones arquitectónicas internas, sino de la robustez de las herramientas (\textit{tooling}) que acompañan el ciclo de vida del producto, desde su concepción en los requerimientos hasta su distribución como binario compilado.
+
+\begin{itemize}
+    \item \textbf{Estrategia metodológica y adaptación ágil:} La ejecución temporal y la monitorización se ha llevado a cabo bajo el marco prescriptivo \textbf{Scrum}. Dado el paradigma unipersonal de este TFG, los roles han sido readaptados sin perder el rigor temporal (\textit{timeboxing}) de \textit{sprints} semanales. Toda la traducción algorítmica de requisitos y el control analítico del trabajo pendiente (\textit{Product Backlog}) se ha administrado en la plataforma en la nube \textbf{Jira}. Mediante la estimación de complejidad a través de \textit{Story Points} y la evaluación de gráficas \textit{burn-down}, se garantizó el mantenimiento predecible de la velocidad de desarrollo.
+    
+    \item \textbf{Entorno integral y versionado de ramas:} Como entorno de desarrollo integrado principal se seleccionó \textbf{Visual Studio Code}, provisto de analizadores estáticos (\textit{linters}) específicos para el cumplimiento de guías de estilo Python (PEP-8). El salvaguardado progresivo de las versiones estables de software y los experimentos algorítmicos paralelos se gestionó ininterrumpidamente mediante \textbf{Git}, consolidando el repositorio seguro y las revisiones en \textbf{GitHub}.
+    
+    \item \textbf{Análisis paramétrico de calidad:} Para prevenir la inclusión sistémica de deuda técnica (\textit{Technical Debt}), evitar la complejidad ciclomática excesiva y asegurar que los componentes estuvieran libres de vulnerabilidades estructurales comunes (\textit{security hotspots}), la base completa de código fuente fue sometida a auditorías automatizadas periódicas orquestadas mediante la plataforma \textbf{SonarQube}.
+    
+    \item \textbf{Generación documental algorítmica:} Asegurando que la documentación técnica visual nunca quede desfasada con respecto a las modificaciones del código fuente, toda la esquemática UML desplegada en el presente apéndice ha sido declarada como código en texto plano utilizando la herramienta \textbf{PlantUML}, lo que permite su versionado natural junto a los módulos del \textit{software}. La redacción tipográfica integral de la presente memoria técnica se consolidó en el compilador estandarizado \textbf{LaTeX} sobre la plataforma \textbf{Overleaf}.
+    
+    \item \textbf{Despliegue operativo y empaquetado de distribución:} La barrera final de usabilidad del software desarrollado exige que el usuario industrial no requiera de complejos manuales de configuración de variables de entorno ni de instalaciones de intérpretes subyacentes. Este reto de \textit{deployment} se abordó íntegramente configurando reglas precisas en \textbf{PyInstaller\cite{pyinstaller2024docs}}. Esta herramienta realiza un análisis profundo de dependencias del árbol de importaciones (AST) y compila un paquete binario (\textit{executable}). PyInstaller embebe dinámicamente un micro-intérprete optimizado de Python, los grafos serializados de TensorFlow (cuyo enrutado relativo de directorios exige configuraciones personalizadas del espacio temporal \texttt{\_MEIPASS}), el binario precompilado de la base de datos SQLite y las rutinas gráficas de PyQt6 en un único archivo ejecutable autónomo. Este diseño procedimental culmina la visión técnica del sistema HIVES proporcionando una solución tecnológica directa, contenida, de máxima eficacia operativa y lista para entornos de producción agroalimentarios.
+\end{itemize}

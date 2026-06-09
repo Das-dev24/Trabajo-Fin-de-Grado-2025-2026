@@ -1,0 +1,123 @@
+\capitulo{2}{Objetivos del proyecto}
+
+El presente Trabajo de Fin de Grado tiene su origen en una propuesta planteada
+por el equipo de tutorización académica de la Escuela Politécnica Superior,
+aceptada por el alumno motivado por su interés particular en profundizar en el
+estudio de las redes neuronales y los algoritmos de \textit{Machine Learning}.
+La aplicación de estas técnicas a un caso de uso real, como es el análisis de
+muestras de miel mediante espectrometría, ha permitido conjugar un objetivo
+formativo de especialización técnica con la resolución de una problemática
+concreta del sector apícola, en el cual los análisis convencionales suelen
+presentar costes elevados y tiempos de procesamiento prolongados.
+
+Conforme a la estructura habitual de proyectos de Ingeniería del Software, los
+objetivos planteados en este TFG se han clasificado en dos categorías
+diferenciadas: por un lado, los \textbf{objetivos del producto software}, que
+definen el comportamiento esperado del sistema resultante; y por otro, los
+\textbf{objetivos técnicos}, que recogen los retos formativos y de
+implementación abordados durante el desarrollo del proyecto.
+
+\section{Objetivos del producto software}
+
+Los objetivos del producto definen el alcance funcional del sistema HIVES
+(\textit{Honey Identification and Verification by Spectroscopy}), cuya
+especificación detallada se encuentra en el Apéndice B. A continuación,
+se presenta una síntesis de los mismos:
+
+\begin{description}
+    \item[OP-1: Automatización del proceso de análisis.] \leavevmode\\ Habilitar la captura
+    automatizada de los datos espectrales mediante la integración del software
+    con un dispositivo espectrométrico, eliminando la necesidad de intervención
+    manual durante la lectura de las muestras.
+
+    \item[OP-2: Clasificación inteligente mediante técnicas de IA.] \leavevmode\\ Implementar
+    un sistema de inferencia basado en una red neuronal preentrenada con
+    \textbf{TensorFlow} o \textbf{Scikit-Learn}, capaz de discriminar el tipo de miel a partir de su
+    firma espectral con un nivel de confianza cuantificable.
+
+    \item[OP-3: Generación automatizada de informes técnicos.] \leavevmode\\ Producir reportes
+    en formato \textbf{PDF} que recojan la totalidad de la información relevante
+    de cada análisis (fecha, resultados de clasificación, métricas espectrales y
+    métricas de confianza del modelo), facilitando su archivo y distribución.
+
+    \item[OP-4: Persistencia y trazabilidad del histórico.] \leavevmode\\ Almacenar los datos
+    de cada análisis en una base de datos local, garantizando su consulta
+    posterior y posibilitando la extracción de conjuntos de datos para futuros
+    reentrenamientos del modelo.
+
+    \item[OP-5: Usabilidad y accesibilidad operativa.] \leavevmode\\ Proporcionar una interfaz
+    gráfica intuitiva que permita el manejo del sistema por parte
+    de personal sin conocimientos técnicos avanzados, asegurando además la
+    compatibilidad multiplataforma.
+\end{description}
+
+\section{Objetivos técnicos}
+
+Los objetivos técnicos recogen los principales retos formativos, metodológicos
+y de implementación que se han afrontado durante el desarrollo del proyecto.
+Estos objetivos no se traducen directamente en funcionalidades del producto,
+sino que constituyen el ámbito de aprendizaje y especialización del alumno como
+ingeniero informático.
+
+\begin{description}
+    \item[{\parbox[t]{\linewidth}{OT-1: Profundizar en el estudio de algoritmos de \textit{Machine Learning}.}}] \leavevmode\\\leavevmode\\
+    Adquirir un conocimiento sólido sobre los
+    fundamentos teóricos y prácticos del aprendizaje automático, abordando la
+    totalidad del ciclo de vida del modelo: preparación y normalización de los
+    datos, diseño de la arquitectura de la red, entrenamiento, evaluación de
+    métricas e integración del modelo entrenado en una aplicación de producción.
+
+    \item[{\parbox[t]{\linewidth}{OT-2: Emplear \textit{Jupyter Notebooks} como entorno de experimentación.}}]  \leavevmode\\\leavevmode\\
+    Utilizar el ecosistema de cuadernos interactivos para
+    llevar a cabo las fases de exploración de los datos espectrales, prototipado
+    de arquitecturas de red, entrenamiento iterativo y evaluación comparativa
+    de los modelos, separando de forma clara la fase de investigación de la
+    posterior fase de integración en la aplicación final.
+
+    \item[{\parbox[t]{\linewidth}{OT-3: Integrar la comunicación hardware-software a bajo nivel.}}] \leavevmode\\\leavevmode\\
+    Establecer una interconexión fiable entre la aplicación de escritorio y el
+    dispositivo espectrométrico mediante el protocolo de comunicación por
+    puerto serie, gestionando la sincronización, los tiempos de espera y los
+    escenarios de desconexión abrupta del hardware.
+
+    \item[{\parbox[t]{\linewidth}{OT-4: Aplicar el patrón arquitectónico Modelo-Vista-Controlador (MVC).}}] \leavevmode\\\leavevmode\\
+    Diseñar e implementar el sistema siguiendo una arquitectura modular
+    que garantice una separación estricta entre la interfaz gráfica, la lógica
+    de negocio y la capa de datos, favoreciendo la mantenibilidad y la
+    escalabilidad del software.
+
+    \item[{\parbox[t]{\linewidth}{OT-5: Gestionar la concurrencia en aplicaciones de escritorio.}}] \leavevmode\\\leavevmode\\
+    Implementar un modelo de ejecución multihilo que permita delegar las tareas
+    de adquisición de datos y de inferencia del modelo a hilos secundarios,
+    evitando el bloqueo de la interfaz gráfica (\textit{GUI freezing}) durante
+    las operaciones intensivas.
+
+    \item[{\parbox[t]{\linewidth}{OT-6: Aplicar una metodología ágil real en un proyecto unipersonal.}}] \leavevmode\\\leavevmode\\
+    Llevar a la práctica el marco de trabajo \textbf{Scrum} apoyado en la
+    herramienta \textbf{Jira}, asumiendo la gestión completa del
+    \textit{Product Backlog}, la planificación de \textit{sprints}, la
+    estimación mediante \textit{Story Points} y el análisis de las métricas de
+    velocidad y \textit{burn-down}.
+
+    \item[{\parbox[t]{\linewidth}{OT-7: Garantizar la compatibilidad multiplataforma.}}] \leavevmode\\ \leavevmode\\
+    Diseñar la aplicación de forma que pueda ejecutarse de manera consistente sobre los
+    sistemas operativos Windows, Linux y macOS, gestionando adecuadamente las
+    particularidades de cada entorno en lo relativo al acceso al puerto serie
+    y al sistema de archivos.
+
+    \item[{\parbox[t]{\linewidth}{OT-8: Diseñar una capa de persistencia local eficiente.}}] \leavevmode\\\leavevmode\\
+    Implementar el almacenamiento de los datos mediante el motor \textbf{SQLite},
+    prescindiendo del uso de mapeadores objeto-relacional (ORM) con el fin de
+    optimizar el rendimiento y mantener un control directo sobre las sentencias
+    SQL.
+
+    \item[{\parbox[t]{\linewidth}{OT-9: Empaquetar y distribuir la aplicación como ejecutable independiente.}}] \leavevmode\\\leavevmode\\ 
+    Generar un binario autónomo que encapsule el intérprete de
+    Python, las dependencias y el modelo entrenado, permitiendo al usuario
+    final ejecutar el sistema sin requerir instalaciones técnicas previas.
+\end{description}
+
+La consecución conjunta de los objetivos del producto y los objetivos técnicos
+descritos constituye la base sobre la que se ha articulado el diseño, la
+implementación y la validación del sistema HIVES, cuyos detalles se desarrollan
+en los apéndices posteriores.

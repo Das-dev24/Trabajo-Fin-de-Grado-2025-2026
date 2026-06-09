@@ -1,0 +1,43 @@
+\capitulo{1}{Introducción}
+
+La viabilidad comercial de las mieles monoflorales se ve amenazada por el fraude alimentario y la adulteración, motivados por su alto valor en el mercado en comparación con las variantes multiflorales. En la actualidad, el método analítico de referencia para verificar el origen botánico de la miel es el análisis melisopalinológico. Sin embargo, esta técnica tradicional presenta severas limitaciones operativas en los entornos productivos modernos: requiere personal altamente especializado en botánica, exige instrumental óptico avanzado y conlleva tiempos de procesamiento prolongados. Estas ineficiencias logísticas y económicas hacen imperativa la investigación de metodologías alternativas y automatizables que provean un cribado analítico ágil y de bajo coste.
+
+Para dar respuesta a esta necesidad, el presente Trabajo de Fin de Grado propone el diseño y desarrollo integral del sistema \ruta{HIVES} (\textit{Honey Identification and Verification by Spectroscopy}), una solución ciberfísica modular que fusiona la espectrometría óptica de bajo coste con técnicas de Inteligencia Artificial para automatizar la clasificación botánica de las mieles de forma no destructiva. La arquitectura hardware se fundamenta en un sensor espectrométrico multicanal (\ruta{AS7265x}) capaz de registrar firmas ópticas discretas en 18 bandas espectrales distribuidas entre las regiones del ultravioleta, el espectro visible y el infrarrojo cercano.
+
+Los flujos de datos capturados se transmiten mediante un protocolo de comunicación serie \ruta{UART} hacia una aplicación de escritorio multiplataforma. Este software, desarrollado íntegramente en \ruta{Python 3.10} bajo el framework gráfico reactivo \ruta{PyQt6}, gestiona la persistencia histórica mediante el motor de base de datos local embebido \ruta{SQLite}. A nivel de rendimiento, el sistema implementa concurrencia asíncrona a través de hilos de ejecución secundarios para garantizar la fluidez de la interfaz de usuario. Finalmente, la plataforma integra un entorno de inferencia predictiva dual que evalúa y clasifica las muestras basándose tanto en modelos de aprendizaje automático clásico (\ruta{XGBoost}) como en arquitecturas de aprendizaje profundo preentrenadas (\ruta{TensorFlow} y \ruta{Keras}).
+
+Todo el código fuente desarrollado a lo largo de este trabajo se encuentra en un repositorio de GitHub compartido con el tribunal, al cual se puede acceder a través del siguiente enlace:\\
+ \url{https://github.com/Das-dev24/Trabajo-Fin-de-Grado-2025-2026}
+\\
+
+El progreso del proyecto se ha registrado en la plataforma Jira, el panel creado para ello también se encuentra compartido con el tribunal, el enlace de acceso al mismo es el siguiente: \\
+\url{https://das-team-hives.atlassian.net/jira/software/projects/SCRUM/boards/1}\\
+
+\section{Estructura de la memoria}
+
+El cuerpo principal de esta memoria técnica se organiza en siete capítulos estructurados lógicamente para argumentar las decisiones de ingeniería de software adoptadas a lo largo de la investigación:
+
+\begin{itemize}
+    \item \textbf{Capítulo 1: Introducción:} Define el contexto socioeconómico, la motivación del proyecto, la problemática de los métodos tradicionales en el sector apícola y ofrece una descripción general de la solución \ruta{HIVES} desarrollada, delimitando la estructura documental.
+    \item \textbf{Capítulo 2: Objetivos del proyecto:} Desglosa detalladamente el alcance del proyecto, clasificándolo de forma normalizada entre objetivos del producto software (funcionalidades y comportamiento esperado del sistema) y objetivos técnicos (retos formativos, metodológicos e instrumentales de implementación).
+    \item \textbf{Capítulo 3: Conceptos teóricos:} Establece el marco científico del proyecto, abarcando los principios de la física óptica, la caracterización bromatológica melífera, la taxonomía del aprendizaje supervisado, las redes neuronales densas, el modelado clásico mediante bosques aleatorios y las bases de las comunicaciones serie.
+    \item \textbf{Capítulo 4: Técnicas y herramientas:} Ofrece una justificación técnica exhaustiva y comparativa de la totalidad de la pila tecnológica seleccionada frente a las opciones descartadas, incluyendo metodologías ágiles (\ruta{Scrum} y \ruta{Jira}), lenguajes de programación, frameworks de interfaz gráfica y sistemas de persistencia.
+    \item \textbf{Capítulo 5: Aspectos relevantes del desarrollo del proyecto:} Describe el núcleo de la experiencia práctica del desarrollo de la solución, detallando el protocolo físico para la confección empírica del \textit{dataset} de 42 muestras y argumentando detalladamente el diseño del flujo algorítmico dual implementado para sortear la escasez de datos.
+    \item \textbf{Capítulo 6: Trabajos relacionados:} Expone una revisión sistemática del estado del arte, analizando críticamente otras soluciones técnicas, patentes y proyectos académicos previos enfocados en la caracterización espectroscópica de alimentos y la detección de fraudes.
+    \item \textbf{Capítulo 7: Conclusiones y líneas de trabajo futuras:} Sintetiza el balance técnico final y el grado de consecución del proyecto, analizando críticamente las lecciones aprendidas sobre concurrencia y comunicación hardware, y planteando la hoja de ruta para la evolución tecnológica del prototipo.
+\end{itemize}
+
+\section{Estructura de los apéndices y materiales entregados}
+
+Complementariamente a la memoria principal, el proyecto se acompaña de un volumen independiente de anexos técnicos estructurado de forma estricta en seis apéndices obligatorios que recogen los artefactos propios de la disciplina de la Ingeniería del Software:
+
+\begin{itemize}
+    \item \textbf{Apéndice A: Plan de Proyecto Software:} Documenta la gestión ágil del ciclo de vida del proyecto mediante la recopilación de los catálogos de tareas y el análisis de los gráficos \textit{burn-down} correspondientes a las 10 iteraciones ejecutadas en \ruta{Jira} , concluyendo con el estudio de viabilidad técnica, temporal, económica y legal.
+    \item \textbf{Apéndice B: Especificación de Requisitos:} Contiene el catálogo formalizado de los 11 requisitos funcionales y 9 requisitos no funcionales del sistema , detallando el comportamiento dinámico esperado a través de cuadros estructurados de Casos de Uso como \ruta{CU-01} (Analizar Muestra), \ruta{CU-02} (Generar Reporte PDF) y \ruta{CU-03} (Consultar Histórico).
+    \item \textbf{Apéndice C: Especificación de diseño:} Detalla las decisiones arquitectónicas bajo el patrón conceptual \ruta{MVC} , el modelo entidad-relación y diccionario de tablas de la base de datos de persistencia local , acompañados de los diagramas procedimentales \textit{UML} de secuencia y flujo de datos (\textit{DFD}).
+    \item \textbf{Apéndice D: Documentación técnica de programación:} Conforma el manual de ingeniería dirigido a desarrolladores, describiendo la jerarquía modular de directorios del repositorio , la configuración del entorno virtual de dependencias, las directrices de compilación independiente mediante \ruta{PyInstaller}  y la batería de pruebas de integración física aplicadas.
+    \item \textbf{Apéndice E: Documentación de usuario:} Provee el manual de operación final del sistema para usuarios sin conocimientos técnicos avanzados , detallando de forma visual los requisitos de instalación, la secuencia de despliegue y los flujos de interacción con la interfaz gráfica reactiva.
+\item \textbf{Apéndice F: Sostenibilización curricular:} Justifica la alineación e impacto del presente proyecto con los Objetivos de Desarrollo Sostenible de la Agenda 2030, junto con una reflexión ética y de responsabilidad profesional sobre las implicaciones del sistema desarrollado.
+\end{itemize}
+
+La memoria principal y los anexos forman un conjunto completo que documenta todo el ciclo de ingeniería del software, desde la teoría que justifica el diseño hasta las pruebas del prototipo. El objetivo es ofrecer al lector una visión detallada y clara del proceso, asegurando que cada decisión técnica en el desarrollo de HIVES esté bien fundamentada y respaldada. Siguiendo esta estructura, los próximos capítulos detallan los fundamentos científicos, las tecnologías utilizadas y los aspectos prácticos que hicieron posible esta solución ciberfísica.

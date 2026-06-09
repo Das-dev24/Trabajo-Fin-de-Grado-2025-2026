@@ -1,0 +1,443 @@
+\apendice{Documentación técnica de programación}
+
+\section{Introducción}
+El presente apéndice conforma el Manual del Programador y de Pruebas del sistema HIVES. Su objetivo principal es documentar la arquitectura a nivel de código, la organización del repositorio, el entorno necesario y los procedimientos de validación del software seguidos. Esta documentación está orientada a facilitar la mantenibilidad, futura escalabilidad y el despliegue del sistema por parte de otros ingenieros o desarrolladores que deseen auditar o continuar el proyecto.
+
+\section{Estructura de directorios}
+El repositorio del proyecto ha sido organizado siguiendo el patrón estándar para aplicaciones modulares en Python, separando claramente la lógica de negocio, los datos, los modelos de Inteligencia Artificial y los recursos estáticos. La jerarquía principal de directorios es la siguiente:
+
+\dirtree{%
+.1 Trabajo-Fin-de-Grado-2025-2026/.
+.2 arduino.
+.3 LecturasParaInterfaz{.}ino\DTcomment{Firmware del sensor (C++)}.
+.2 release\DTcomment{Contiene los ejecutables de Windows y Linux.}.
+.2 data\DTcomment{Almacena datos y logs}.
+.3 data{.}db\DTcomment{Base de datos SQLite (persistencia local)}.
+.3 hives{.}log\DTcomment{Logs para diagnóstico de errores}.
+.2 models\DTcomment{Lógica de entrenamiento y modelos}.
+.3 mejor\_modelo{.}keras\DTcomment{Modelo en producción (TensorFlow)}.
+.3 clases{.}json\DTcomment{Nombres de clase en inferencia}.
+.3 mejor\_modelo\_final{.}keras\DTcomment{Modelo anterior (descartado)}.
+.3 pruebaColab{.}ipynb\DTcomment{Notebook activo de entrenamiento}.
+.3 pruebaTensorDataSetCorregido{.}ipynb\DTcomment{Notebook anterior (descartado)}.
+.2 src/.
+.3 main{.}py\DTcomment{ENTRY POINT de la aplicación}.
+.3 constants{.}py.
+.3 sensor{.}py.
+.3 runtime\_hook{.}py.
+.3 db/\DTcomment{Inicializador de la base de datos}.
+.4 \_\_init\_\_{.}py.
+.4 seeder{.}py.
+.3 hooks/\DTcomment{Empaquetado de ML con PyInstaller}.
+.4 hook-keras{.}py.
+.4 hook-matplotlib{.}py.
+.4 hook-tensorflow{.}py.
+.3 hives/\DTcomment{CÓDIGO ACTIVO (paquete hives.*)}.
+.4 \_\_init\_\_{.}py.
+.4 constants{.}py\DTcomment{Constantes globales del proyecto}.
+.4 core/.
+.5 \_\_init\_\_{.}py.
+.5 sensor{.}py\DTcomment{Comunicación serie (SerialReader)}.
+.5 database{.}py\DTcomment{Inicialización del esquema de la BD}.
+.5 paths{.}py\DTcomment{Variables de rutas}.
+.4 gui/\DTcomment{Capa de presentación (Vista MVC)}.
+.5 \_\_init\_\_{.}py.
+.5 main\_window{.}py\DTcomment{Ventana principal (SpectroControlUI)}.
+.5 widgets{.}py\DTcomment{Canvas espectral (SpectralCanvas)}.
+.5 workers{.}py\DTcomment{Hilos QThread asíncronos}.
+.5 dialogs{.}py\DTcomment{Diálogos modales}.
+.4 inference/.
+.5 \_\_init\_\_{.}py.
+.5 model{.}py\DTcomment{Carga y ejecución del modelo}.
+.4 reports/.
+.5 \_\_init\_\_{.}py.
+.5 pdf\_report{.}py\DTcomment{Generación de informes PDF}.
+.2 tests/\DTcomment{Pruebas automatizadas (pytest)}.
+.3 conftest{.}py\DTcomment{Fixtures compartidos (BD, mocks, ventana)}.
+.3 test\_database{.}py.
+.3 test\_dialogs{.}py.
+.3 test\_inference{.}py.
+.3 test\_main\_window{.}py.
+.3 test\_pdf\_report{.}py.
+.3 test\_sensor{.}py.
+.3 test\_widgets{.}py.
+.3 test\_workers{.}py.
+.2 build\_linux{.}sh\DTcomment{Construcción en Linux}.
+.2 build\_macos{.}sh\DTcomment{Construcción en macOS}.
+.2 build\_windows{.}ps1\DTcomment{Construcción en Windows}.
+.2 coverage{.}xml\DTcomment{Reporte de cobertura (pytest)}.
+.2 pyproject{.}toml\DTcomment{Configuración de pytest}.
+.2 requirements{.}txt\DTcomment{Dependencias Python}.
+.2 sonar\_project{.}properties\DTcomment{Configuración SonarQube}.
+.2 HIVES{.}spec\DTcomment{Configuración para PyInstaller}.
+.2 README{.}md\DTcomment{Documentación del repositorio}.
+}
+
+\section{Manual del programador}
+
+Este apartado detalla las dependencias y las decisiones de implementación
+adoptadas durante el desarrollo del sistema.
+
+\subsection*{Entorno de desarrollo y dependencias}
+
+El núcleo de la aplicación ha sido desarrollado íntegramente en
+\textbf{Python 3.10}, utilizando \textbf{Visual Studio Code} como Entorno de
+Desarrollo Integrado (IDE) y \textbf{Git} para el control de versiones,
+alojando el repositorio en GitHub.
+
+El proyecto hace uso de las siguientes librerías de terceros:
+
+\begin{itemize}
+    \item \textbf{PyQt6:} \textit{framework} para la construcción de la
+    interfaz gráfica de usuario (GUI) y la gestión de hilos mediante
+    \texttt{QThread}.
+    \item \textbf{TensorFlow:} biblioteca para la carga del modelo de red
+    neuronal y la ejecución de la inferencia en producción.
+    \item \textbf{Scikit-learn:} biblioteca empleada durante la fase de
+    experimentación para el entrenamiento y evaluación de clasificadores
+    alternativos, incluyendo \textbf{Random Forest}.
+    \item \textbf{cuML:} biblioteca utilizada durante la fase de
+    experimentación para el entrenamiento y comparativa de clasificadores
+    de alto rendimiento, incluyendo nuevamente \textbf{Random Forest}.
+    \item \textbf{XGBoost}: biblioteca empleada durante la fase de experimentación
+    para el entrenamiento y evaluación de clasificadores alternativos, incluyendo \textbf{XGBClassifier},
+    que terminó integrándose como la primera etapa de procesamiento dentro de la arquitectura híbrida definitiva.
+    \item \textbf{PySerial:} módulo empleado para establecer la comunicación
+    de bajo nivel con el Arduino Uno a través del puerto serie.
+    \item \textbf{FPDF2:} librería para la maquetación y generación de los
+    reportes en formato PDF.
+\end{itemize}
+
+Adicionalmente, se hace un uso extensivo de la librería estándar de Python
+(\texttt{sqlite3}, \texttt{os}, \texttt{sys}, \texttt{time}, \texttt{datetime}).
+\subsection*{Detalles de implementación: concurrencia y base de datos}
+
+Para evitar la congelación de la interfaz gráfica (\textit{GUI freezing})
+durante la lectura del puerto serie y la inferencia del modelo, se ha
+implementado un sistema de concurrencia basado en \textbf{QThread} de PyQt6.
+Este hilo secundario se levanta exclusivamente al iniciar el análisis y emite
+una señal a la vista principal una vez obtenidos los resultados, manteniendo
+la interfaz reactiva en todo momento.
+
+En cuanto a la persistencia de datos, se ha prescindido de mapeadores
+objeto-relacional (ORM) en favor de consultas SQL puras sobre SQLite. Esta
+decisión minimiza el consumo de recursos y otorga un control optimizado sobre
+las sentencias de inserción y filtrado del histórico. El esquema de la base de
+datos, compuesto por las tablas \texttt{muestras}, \texttt{predicciones},
+\texttt{analisis} y \texttt{calibraciones}, ha sido inicializado mediante un
+script de \textit{inicialización} y  \textit{seeding} que garantiza la creación de la estructura relacional
+en el primer arranque de la aplicación.
+\newpage
+\section{Pruebas del sistema}
+
+Para asegurar la calidad, fiabilidad y robustez de la aplicación, se ha diseñado
+una batería de pruebas centrada en los componentes críticos del sistema.
+
+\subsection*{Batería de pruebas automatizadas}
+
+El proyecto cuenta con una suite de pruebas unitarias y de integración
+implementada mediante el \textit{framework} \textbf{pytest\cite{pytest2024docs}}, ejecutable
+de forma completa con el siguiente comando desde la raíz del repositorio:
+
+\begin{verbatim}
+pytest tests/
+\end{verbatim}
+
+La suite se organiza en ocho módulos de test independientes, cada uno
+orientado a un componente específico de la arquitectura:
+
+\begin{itemize}
+    \item \texttt{test\_database.py}: verifica la correcta creación del
+    esquema de la base de datos y la integridad referencial entre las
+    tablas \texttt{muestras}, \texttt{predicciones}, \texttt{analisis}
+    y \texttt{calibraciones}.
+    \item \texttt{test\_sensor.py}: prueba el módulo de comunicación
+    serie, comprobando el comportamiento ante desconexiones abruptas,
+    \textit{timeouts} y tramas de datos incompletas o corruptas.
+    \item \texttt{test\_inference.py}: valida que el módulo de
+    clasificación recibe tensores con la dimensionalidad y normalización
+    correctas y emite predicciones coherentes con la arquitectura del
+    modelo.
+    \item \texttt{test\_main\_window.py}: prueba la lógica de la ventana
+    principal, incluyendo el ciclo de análisis completo y la gestión
+    de estados de la interfaz.
+    \item \texttt{test\_widgets.py}: comprueba el funcionamiento del
+    canvas espectral (\texttt{SpectralCanvas}) y su renderizado.
+    \item \texttt{test\_workers.py}: verifica el comportamiento de los
+    hilos \textbf{QThread}, asegurando que las señales se emiten
+    correctamente al hilo principal una vez completada la operación.
+    \item \texttt{test\_dialogs.py}: valida los diálogos modales de la
+    aplicación y su interacción con el flujo principal.
+    \item \texttt{test\_pdf\_report.py}: comprueba la generación de
+    informes PDF, verificando que el documento resultante contiene los
+    campos requeridos por el requisito RF-07.
+\end{itemize}
+
+\subsection*{Estrategia de \textit{mocking} y \textit{fixtures}}
+
+Dado que el sistema interactúa con hardware externo y con dependencias
+de gran peso computacional, la suite de pruebas hace un uso extensivo
+de \textit{mocking\cite{fowler2007mocks}} para aislar cada componente y garantizar que los
+tests son reproducibles en cualquier entorno, incluyendo entornos de
+integración continua sin hardware físico disponible. Todas las
+\textit{fixtures} compartidas se definen de forma centralizada en
+\texttt{tests/conftest.py}:
+
+\begin{itemize}
+    \item \texttt{mem\_db}: conexión SQLite en memoria (\texttt{:memory:})
+    con el esquema completo inicializado. Empleada en los tests de base
+    de datos puros, garantiza el aislamiento total entre ejecuciones.
+    \item \texttt{test\_db}: ruta a un fichero \texttt{.db} temporal con
+    todas las tablas creadas, útil para los tests que requieren una base
+    de datos persistente durante el ciclo de vida del test.
+    \item \texttt{mock\_serial}: parchea \texttt{serial.Serial}
+    globalmente, simulando una conexión abierta con comportamientos
+    configurables por cada test. Permite reproducir escenarios de
+    desconexión, \textit{timeout} o recepción de tramas corruptas sin
+    necesidad del hardware real.
+    \item \texttt{mock\_reader}: instancia un \texttt{SerialReader} del
+    paquete activo con la conexión serie ya vinculada al
+    \texttt{mock\_serial}, eliminando la necesidad de reconfigurar
+    el \textit{mock} en cada test individual.
+    \item \texttt{mock\_model}: simula un modelo TensorFlow mediante
+    \texttt{MagicMock}, devolviendo un vector de 5 probabilidades
+    uniformes y la lista de las 5 clases reales en nuestro caso. Permite ejecutar el flujo
+    completo de inferencia sin cargar TensorFlow en memoria.
+    \item \texttt{window}: instancia completa de \texttt{SpectroControlUI}
+    con la ruta de base de datos, el modelo y los puertos serie
+    parcheados, registrada con \texttt{qtbot.addWidget()} para su
+    limpieza automática al finalizar cada test.
+\end{itemize}
+
+Las dependencias que no se mockean son aquellas que ya incorporan
+mecanismos de resiliencia propios: \texttt{inference/model.py} gestiona
+internamente el \texttt{ImportError} de TensorFlow, y tanto
+\texttt{widgets.py} como \texttt{pdf\_report.py} disponen de rutas de
+\textit{fallback} ante la ausencia de \textbf{matplotlib}, por lo que
+su comportamiento queda cubierto de forma indirecta por los tests
+funcionales.
+
+\subsection*{Pruebas de integración y hardware}
+
+Dada la naturaleza del proyecto, las pruebas de integración se centran en
+verificar la correcta comunicación entre el software y el hardware externo.
+Se han realizado pruebas de estrés y validación sobre el puerto serie
+(mediante \textbf{PySerial}) para garantizar que el sistema maneja
+correctamente las desconexiones abruptas del Arduino Uno, los tiempos de
+espera agotados (\textit{timeouts}) y la recepción de tramas de datos
+incompletas o corruptas. Asimismo, se ha verificado la correcta interacción
+entre la lógica de la aplicación y la base de datos SQLite, asegurando que
+las operaciones de lectura y escritura sobre las tablas \texttt{muestras},
+\texttt{predicciones}, \texttt{analisis} y \texttt{calibraciones} mantienen
+la integridad referencial definida en el esquema.
+
+\subsection*{Validación del modelo de IA y concurrencia}
+
+Se han llevado a cabo pruebas específicas sobre el flujo de inferencia. Por
+un lado, se ha validado que el modelo híbrido recibe los tensores con
+la dimensionalidad y normalización correctas, emitiendo predicciones
+consistentes con las métricas de precisión obtenidas durante su fase de
+entrenamiento. La selección de esta arquitectura final estuvo precedida por una fase
+de experimentación en la que se compararon múltiples algoritmos de
+aprendizaje automático (Random Forest mediante \textbf{scikit-learn} y 
+XGBoost mediante \textbf{xgboost}, entre otros), evaluando su rendimiento 
+sobre el conjunto de datos espectrales recogido con el prototipo físico. 
+Esta fase empírica justificó la adopción del modelo definitivo, cuyos resultados quedan recogidos 
+en el capítulo de aspectos relevantes de la memoria principal.
+
+Por otro lado, se ha comprobado exhaustivamente el comportamiento de la
+interfaz gráfica durante el análisis concurrente, confirmando que la
+delegación de tareas pesadas a hilos \textbf{QThread} evita bloqueos en
+la GUI y permite una experiencia de usuario fluida y reactiva.
+
+\subsection*{Análisis estático de calidad del código}
+
+Con el objetivo de evaluar de forma objetiva la calidad del código
+ desarrollado, se ha integrado la herramienta \textbf{SonarQube\cite{sonarqube2024docs}} en el
+repositorio del proyecto mediante el fichero de configuración
+\texttt{sonar\_project.properties}. La instancia utilizada es una instalación
+autoalojada en \textbf{Docker}, desplegada en un servidor local, lo que permite mantener el análisis
+dentro de la infraestructura local sin dependencias de servicios externos
+en la nube. El análisis se lanza de forma manual desde el equipo de desarrollo
+mediante \texttt{sonar-scanner}, autenticándose con el token de acceso personal
+generado en dicha instancia.
+
+Esta herramienta realiza un análisis estático del código, detectando
+vulnerabilidades de seguridad, problemas de fiabilidad, deuda técnica de
+mantenibilidad y duplicaciones. El análisis inicial del código fuente superó
+el umbral de calidad (\textit{Quality Gate: Passed}), con los siguientes
+resultados por categoría:
+
+\begin{itemize}
+    \item \textbf{Seguridad:} 0 incidencias abiertas — calificación \textbf{A}.
+    \item \textbf{Fiabilidad:} 0 incidencias abiertas — calificación \textbf{A}.
+    \item \textbf{Mantenibilidad:} 49 incidencias abiertas — calificación
+    \textbf{A}. Estas incidencias corresponden principalmente a sugerencias
+    de refactorización menores (\textit{code smells}) inherentes al carácter
+    iterativo del desarrollo ágil, sin impacto funcional en el sistema.
+    \item \textbf{Cobertura de pruebas:} 0{,}0\,\% sobre 8.800 líneas
+    analizadas. SonarQube no recibía ningún informe de cobertura externo en
+    esta configuración inicial, por lo que la métrica no refleja la batería
+    de pruebas real del proyecto.
+    \item \textbf{Duplicaciones:} 45{,}7\,\% sobre 8.800 líneas. Este índice
+    elevado se explica por la coexistencia en el directorio \texttt{src/} de
+    la codebase legada (\texttt{src/gui/}, \texttt{src/db/}) y el paquete
+    activo refactorizado (\texttt{src/hives/}), que comparten estructuras
+    equivalentes durante el periodo de transición arquitectónica.
+    \item \textbf{Security Hotspots:} 0 — calificación \textbf{A}.
+\end{itemize}
+
+\imagentamano{img/Anexos/sonarqube_report}{Informe de calidad del código
+generado por SonarQube en la configuración inicial (\texttt{sonar.sources=src}).
+El proyecto supera el \textit{Quality Gate} con calificación A en seguridad,
+fiabilidad y mantenibilidad; no obstante, la cobertura de pruebas registra
+0{,}0\,\% por ausencia de informe de cobertura externo, y el índice de
+duplicaciones alcanza el 45{,}7\,\% debido a la presencia simultánea de código
+legado y código refactorizado en el repositorio. Fuente: Elaboración Propia.}{1.1}
+
+\subsubsection*{Intentos de mejora de la integración con SonarQube}
+
+Tras analizar los resultados obtenidos, se identificaron dos limitaciones en la
+integración y se procedió a corregirlas experimentalmente.
+
+\paragraph{Cobertura de pruebas.}
+Se instrumentó la suite de pruebas con \texttt{pytest-cov} para generar un
+informe en formato Cobertura XML:
+
+\begin{verbatim}
+pytest --cov=src/hives --cov-report=xml:coverage.xml tests/
+\end{verbatim}
+
+La ejecución confirmó una \textbf{cobertura real del 71{,}47\,\%} sobre 1.556
+líneas del paquete activo (1.112 líneas cubiertas), con resultados destacados
+en los módulos críticos: \texttt{reports/pdf\_report.py} (97{,}10\,\%),
+\texttt{core/database.py} (93{,}75\,\%) e \texttt{inference/model.py}
+(86{,}21\,\%). El fichero \texttt{coverage.xml} generado queda incluido en el
+repositorio como evidencia.
+
+Sin embargo, a pesar de añadir la propiedad \\
+\texttt{sonar.python.coverage.reportPaths=coverage.xml} \\ al fichero de
+configuración, la métrica de cobertura continuó mostrando 0{,}0\,\% en la
+interfaz de SonarQube. La causa más probable es una incompatibilidad entre la
+versión autoalojada de SonarQube y el formato del informe generado por la
+versión de \texttt{coverage.py} utilizada.
+
+\paragraph{Duplicaciones y restricción del alcance del análisis.}
+Para reducir el índice de duplicaciones, se modificó la propiedad
+\texttt{sonar.sources=src/hives} con el objetivo de restringir el análisis
+únicamente al paquete activo. No obstante, la ejecución produjo un resultado
+inesperado: el número de líneas analizadas se multiplicó desde las 8.800
+iniciales hasta aproximadamente 212.000, y la calificación de
+\textbf{Fiabilidad descendió a C}, con más de 12.000 incidencias reportadas.
+
+Este comportamiento indica que la ruta especificada incluyó inadvertidamente
+directorios de dependencias instaladas —presumiblemente el directorio
+\texttt{\_internal} o el entorno virtual de Python presente en la misma
+jerarquía—, los cuales fueron indexados por SonarQube junto con el código
+propio. El elevado número de incidencias de fiabilidad es, por tanto,
+consecuencia del análisis de bibliotecas de terceros, y no refleja la calidad
+del código fuente desarrollado en el proyecto.
+
+Ambas limitaciones quedan identificadas como líneas de mejora futura: la
+correcta configuración de \texttt{sonar.exclusions} para excluir dependencias
+y entornos virtuales, y la resolución de la incompatibilidad en el formato del
+informe de cobertura.
+
+\imagentamano{img/Anexos/sonarQubev2.png}{Informe de SonarQube tras la
+modificación de \texttt{sonar.sources=src/hives}. El incremento no esperado de
+líneas analizadas (hasta 212.000) y el descenso de Fiabilidad a C evidencian
+que el analizador indexó dependencias externas incluidas en la ruta configurada,
+y no únicamente el código fuente del proyecto. Fuente: Elaboración Propia.}{1}
+
+\subsubsection*{Compilación y empaquetado del ejecutable}
+
+La distribución de HIVES se realiza mediante \textbf{PyInstaller\cite{pyinstaller2024docs}}, herramienta
+que genera un ejecutable autocontenido que encapsula el intérprete de Python,
+todas las dependencias y el modelo de Inteligencia Artificial, eximiendo al
+usuario final de cualquier instalación técnica previa. El proceso de empaquetado
+queda íntegramente definido en el fichero \texttt{HIVES.spec}, ubicado en la
+raíz del repositorio, que actúa como especificación reproducible del build.
+Para generar el ejecutable basta con ejecutar desde la raíz del repositorio:
+
+\begin{verbatim}
+pyinstaller HIVES.spec
+\end{verbatim}
+
+El resultado se deposita en \texttt{dist/HIVES/}, siguiendo el formato
+\textit{one-dir}: un ejecutable principal (\texttt{HIVES.exe} en Windows,
+\texttt{HIVES} en Linux/macOS) acompañado de un directorio \texttt{\_internal/}
+que contiene los binarios, las DLLs y el modelo \texttt{mejor\_modelo.keras}.
+Este formato fue seleccionado frente al \textit{one-file} porque elimina la fase
+de auto-extracción al arranque, reduciendo el tiempo de inicio de \mbox{4--8\,s}
+a \mbox{2--4\,s}.
+
+\paragraph{Optimizaciones aplicadas al \texttt{spec}.}
+El fichero \texttt{HIVES.spec} incorpora un conjunto de optimizaciones
+progresivas orientadas a reducir el tiempo de build y el tiempo de arranque
+del ejecutable:
+
+\begin{itemize}
+    \item \textbf{Exclusión de paquetes no utilizados.} Se declaran en el
+    parámetro \texttt{excludes} los paquetes que PyInstaller rastrearía
+    innecesariamente: \texttt{pandas}, \texttt{scipy}, \texttt{sklearn},
+    \texttt{cv2}, \texttt{setuptools}, \texttt{pdb}, \texttt{lib2to3},
+    \texttt{curses}, \texttt{idlelib} y \texttt{turtledemo}, entre otros.
+    La aplicación únicamente requiere PyQt6, TensorFlow, NumPy, matplotlib,
+    FPDF2 y PySerial. Nótese que \texttt{PIL} y \texttt{unittest} no se
+    excluyen porque matplotlib 3.10+ los referencia internamente. Esta
+    medida reduce el tiempo de la fase de análisis de PyInstaller en
+    aproximadamente un 20--40\,\%.
+
+    \item \textbf{Optimización de bytecode.} El parámetro \texttt{optimize=2}
+    instruye a Python para que compile los módulos embebidos eliminando
+    \textit{docstrings} y aplicando optimizaciones de \textit{peephole}.
+    Esto reduce ligeramente el tamaño de los \texttt{.pyc} y acelera la
+    carga de módulos en torno a un 5--10\,\%, sin ningún impacto en la
+    funcionalidad.
+
+    \item \textbf{Desactivación de UPX.} La compresión UPX
+    (\texttt{upx=False}) ha sido deshabilitada en Windows y Linux. Si bien
+    UPX reduce el tamaño del bundle, añade tiempo de compresión en el build
+    y tiempo de descompresión en cada arranque, lo que penaliza la experiencia
+    de uso en el contexto de este proyecto.
+
+    \item \textbf{Runtime hook de TensorFlow.} Se ha creado el fichero de \\
+    \texttt{src/runtime\_hook.py}, referenciado en el parámetro
+    \texttt{runtime\_hooks} del spec, que se ejecuta antes de cualquier
+    import de la aplicación. Establece tres variables de entorno críticas:
+    \texttt{TF\_CPP\_MIN\_LOG\_LEVEL=3} suprime los mensajes de diagnóstico
+    de TensorFlow en consola;\\ \texttt{CUDA\_VISIBLE\_DEVICES=-1} impide la
+    inicialización del subsistema CUDA/GPU, ahorrando entre 2 y 3 segundos
+    de arranque en equipos sin tarjeta gráfica dedicada (perfil habitual del
+    usuario objetivo) y evitando crashes por drivers ausentes;
+    \texttt{OMP\_NUM\_THREADS=4} limita el paralelismo de OpenMP durante la
+    carga de TensorFlow, evitando la proliferación de hilos competidores
+    sobre la CPU.
+\end{itemize}
+
+\paragraph{Resolución del backend gráfico de matplotlib.}
+Durante las pruebas del ejecutable empaquetado se detectó que el canvas
+espectral mostraba el mensaje \textit{«matplotlib no disponible»}. La causa
+raíz fue que PyInstaller no incluía el backend interactivo \texttt{QtAgg},
+ya que su importación se produce dentro de un bloque \texttt{try/except} que
+el analizador estático de PyInstaller no rastrea. La solución requirió tres
+intervenciones coordinadas:
+
+\begin{enumerate}
+    \item Forzar la selección del backend antes de cualquier import,
+    añadiendo\\ \texttt{matplotlib.use('QtAgg')} al inicio del runtime hook.
+    \item Declarar explícitamente en \texttt{hiddenimports} los módulos \\
+    \texttt{matplotlib.backends.backend\_qtagg}, \texttt{backend\_qt} y
+    \texttt{backend\_agg}, así como sus dependencias transitivas
+    (\texttt{kiwisolver}, \texttt{pyparsing},\\ \texttt{contourpy},
+    \texttt{packaging}, \texttt{fonttools}, \texttt{dateutil}), completando
+    el listado con \texttt{collect\_submodules('matplotlib.backends')}.
+    \item Incluir los datos estáticos de matplotlib (fuentes y
+    \texttt{matplotlibrc}) mediante \texttt{collect\_data\_files('matplotlib')}
+    y un hook personalizado en \texttt{src/hooks/hook-matplotlib.py}.
+\end{enumerate}
+
+El conjunto de optimizaciones aplicadas reduce el tiempo de build de los
+2--5 minutos originales a aproximadamente 30--60 segundos, y el tiempo de
+arranque de 4--8 segundos a 2--4 segundos, manteniendo el 100\,\% de la
+funcionalidad del sistema.

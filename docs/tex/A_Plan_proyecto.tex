@@ -1,0 +1,822 @@
+\apendice{Plan de Proyecto Software}
+
+\section{Introducción}
+Para el desarrollo de este proyecto, se ha optado por seguir la metodología ágil Scrum \cite{schwaber2020scrumguide}, dado que es el marco de trabajo más extendido en la industria del desarrollo de software y se encuentra en consonancia con la formación adquirida durante los estudios académicos y las prácticas en empresa.
+
+Como herramienta central para la gestión del proyecto, se ha utilizado el software Jira de Atlassian. Esta plataforma permite realizar un seguimiento estructurado de las tareas, monitorizar su estado de ejecución y facilitar una gestión eficiente de los sprints. Los elementos principales empleados durante la planificación en Jira han sido los siguientes:
+\begin{itemize}
+    \item \textbf{Epics:} Empleadas para agrupar y clasificar las tareas en función del módulo o área del sistema sobre las que tienen impacto.
+    \item \textbf{Tasks (Tareas):} Unidades individuales de trabajo planificadas que resultan necesarias para la consecución de los objetivos del proyecto.
+    \item \textbf{Vista de Backlog:} Herramienta de visualización utilizada para monitorizar la situación actual, el progreso de todas las tareas pendientes y de los sprints en curso.
+\end{itemize}
+
+Dentro de la herramienta, se ha establecido como norma que cada tarea debe contar con una estimación temporal, un nivel de prioridad y una etiqueta identificativa para facilitar su clasificación. Para estandarizar las mediciones del esfuerzo requerido en el proyecto, se ha empleado la métrica de \textit{Story Points}, cuya equivalencia temporal se detalla en la siguiente tabla:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{| c | c |}
+        \hline
+        \textbf{Story Points} & \textbf{Estimación} \\ \hline
+        1 & 1 hora \\ \hline
+        2 & 2 horas \\ \hline
+        3 & 3 horas \\ \hline
+        4 & 4 horas \\ \hline
+        5 & 5 horas \\ \hline
+        8 & 8 horas \\ \hline
+        13 & 13 horas \\ \hline
+        15 & 15 horas \\ \hline
+    \end{tabular}
+    \caption{Equivalencia entre \textit{Story Points} y estimación temporal.}
+\end{table}
+
+\section{Planificación temporal}
+
+A continuación, se exponen los resúmenes correspondientes a cada sprint, los cuales han sido redactados y documentados tras la finalización y revisión de cada iteración.
+
+\subsection{Sprint 1: Estructuración Inicial del Proyecto}
+
+\begin{itemize}
+    \item \textbf{Período:} 26 de marzo - 2 de abril de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Estructuración inicial del proyecto, configuración del repositorio de control de versiones y definición de los componentes técnicos fundamentales.
+    \item \textbf{Esfuerzo estimado:} 16 horas de desarrollo.
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{4.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \midrule
+        SCRUM-8  & Documentación inicial & [SW-DOCS-01] & 5 pts & 5 pts & Completada\\
+        SCRUM-10 & Organizar carpetas repo & [SW-DOCS-01] & 2 pts & 2 pts & Completada \\
+        SCRUM-11 & Definir modelos BD & [SW-ANALYSIS-01] & 3 pts & 3 pts & Completada \\
+        SCRUM-12 & Probar  interfaz PySide6 & [SW-ANALYSIS-01] & 4 pts & 4 pts & Completada \\
+        SCRUM-13 & Redactar README & [SW-ANALYSIS-01] & 2 pts & 2 pts & Completada \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 1.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total estimado inicialmente:} 5 \textit{Story Points} (en el \textit{Sprint Backlog} original).
+    \item \textbf{Total real del sprint:} 16 \textit{Story Points}.
+    \item \textbf{Tasa de finalización:} 16/16 (100\%).
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint}
+Durante la fase de planificación (\textit{Sprint Planning}), se programaron inicialmente 5 puntos de historia. Pero, tras un proceso de revisión y refinamiento del \textit{Product Backlog} efectuado el 27 de marzo, se identificaron nuevas tareas que resultaban esenciales para asegurar la correcta estructuración inicial del software:
+
+\begin{itemize}
+    \item \textbf{SCRUM-10:} Organizar carpetas repo (2 puntos).
+    \item \textbf{SCRUM-11:} Definir modelos BD (3 puntos).
+    \item \textbf{SCRUM-12:} Probar interfaz PySide6 (4 puntos).
+    \item \textbf{SCRUM-13:} Redactar  \textit{README} (2 puntos).
+\end{itemize}
+
+Estas tareas fueron incorporadas al \textit{sprint} durante su ejecución. Esta situación no refleja un error de estimación, sino la naturaleza ágil del proyecto, evidenciando una adaptación ante la aparición de nuevas dependencias técnicas.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, mostró el siguiente progreso:
+
+\begin{itemize}
+    \item \textbf{27 de marzo:} Inicio del ciclo con 5 puntos planificados.
+    \item \textbf{27-28 de marzo:} Incorporación controlada de 11 puntos adicionales al \textit{sprint backlog} (alcanzando un total de 16 puntos de esfuerzo real).
+    \item \textbf{29 de marzo - 2 de abril:} Reducción constante y gradual del trabajo pendiente.
+    \item \textbf{2 de abril:} Cierre del \textit{sprint} sin tareas pendientes.
+\end{itemize}
+
+\imagen{Sprints/burnDownS1.png}{Evolución del trabajo y gráfico burn-down del Sprint 1. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item El incremento de puntos registrado el 28 de marzo fue una acción planificada y justificada, evitando una desviación incontrolada del alcance (\textit{scope creep}).
+    \item Se logró completar el 100\% de las tareas programadas dentro del marco temporal establecido.
+    \item La velocidad de desarrollo alcanzada se estableció en 16 puntos de historia en 7 días.
+    \item No se registraron impedimentos técnicos ni bloqueos funcionales durante la iteración.
+    \item \textbf{Eficiencia temporal:} Las tareas se completaron dentro del margen de las 16 horas estimadas, sin incurrir en sobrecostes temporales.
+\end{itemize}
+
+\subsection{Sprint 2: Siguiente fase de estructuración}
+
+\begin{itemize}
+    \item \textbf{Período:} 2 de abril - 9 de abril de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Continuar con la formalización inicial del proyecto y empezar a añadir funcionalidades del sensor.
+    \item \textbf{Esfuerzo estimado:} 17 horas de desarrollo.
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{4.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \midrule
+        SCRUM-14 & Pensar funciones Arduino para poner en la interfaz & [SW-HW-01] & 5 pts & 5 pts & Completada \\
+        SCRUM-15 & Mockup Interfaz & [SW-DESK-01] & 2 pts & 2 pts & Completada \\
+        SCRUM-16 & Documentar sprint & [SW-DOCS-01] & 1 pts & 1 pts & Completada \\
+        SCRUM-17 & Comunicación Python Serial & [SW-HW-01] & 3 pts & 3 pts & Completada \\
+        SCRUM-18 & Investigación Análisis Polínicos & [SW-ANALYSIS-01] & 3 pts & 3 pts & Completada \\
+        SCRUM-19 & Investigar Modelo & [SW-AI-01] & 3 pts & 3 pts & Completada \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 2.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total estimado inicialmente:} 17 \textit{Story Points} (en el \textit{Sprint Backlog} original).
+    \item \textbf{Total real del sprint:} 17 \textit{Story Points}.
+    \item \textbf{Tasa de finalización:} 17/17 (100\%).
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint}
+Durante la fase de planificación (\textit{Sprint Planning}), se programaron inicialmente 17 puntos de historia, centrándose en seguir formalizando las distintas decisiones sobre el diseño de la aplicación, así como en empezar a establecer una comunicación entre el dispositivo y la aplicación.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, mostró el siguiente progreso a lo largo de la iteración:
+
+\begin{itemize}
+    \item \textbf{3 al 5 de abril:} Inicio del ciclo. La línea de progreso (roja) se mantiene plana en los 17 puntos de historia originales. Esto indica que las tareas se encontraban en fase de desarrollo.
+    \item \textbf{6 y 7 de abril:} Se registran los primeros cierres formales de tareas, reduciendo el trabajo pendiente de manera escalonada de 17 a 13 puntos.
+    \item \textbf{8 de abril:} Jornada de mayor consolidación e integración, evidenciada por una caída pronunciada en el gráfico que reduce el trabajo pendiente de 13 a 5 puntos de historia.
+    \item \textbf{9 de abril:} Cierre y validación de las tareas finales, alcanzando el objetivo de 0 puntos pendientes en el último día del \textit{sprint}.
+\end{itemize}
+
+\imagen{Sprints/burnDownS2.png}{Evolución del trabajo y gráfico burn-down del Sprint 2. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Desviación inicial:} Durante la primera mitad de la iteración, la curva real de progreso se situó por encima de la línea ideal de resolución (gris). Esto fue causado porque las primeras tareas realizadas fueron las que requerían mayor tiempo de investigación y estructuración antes de poder considerarse cerradas.
+    \item \textbf{Estabilidad del alcance:} No se aprecian picos ascendentes en la línea de trabajo, lo que confirma que no se introdujeron tareas imprevistas a mitad del ciclo.
+    \item Se logró completar el 100\% de las tareas dentro del marco temporal establecido, finalizando la iteración puntualmente el 9 de abril.
+    \item No se registraron impedimentos técnicos ni bloqueos funcionales críticos que comprometieran la entrega.
+    \item \textbf{Velocidad validada:} Se ha demostrado la capacidad de absorber y completar una carga de 17 puntos de historia en un ciclo de 7 días, estableciendo la primera métrica real de velocidad (\textit{velocity}) del proyecto.
+\end{itemize}
+
+\subsection{Sprint 3: Implementación de Interfaz, Persistencia e Integración Física}
+
+\begin{itemize}
+    \item \textbf{Período:} 10 de abril - 16 de abril de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Desarrollar la primera iteración funcional de la interfaz gráfica, establecer la persistencia de datos (base de datos y exportación CSV) y realizar pruebas físicas de medición con el hardware.
+    \item \textbf{Esfuerzo estimado:} 25 horas de desarrollo (\textit{Story Points}).
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \midrule
+        SCRUM-20 & Documentar Sprint Anterior & [SW-DOCS-01] & 2 pts & 2 pts & Finalizado \\
+        SCRUM-21 & Crear Interfaz Gráfica & [SW-DESK-01] & 5 pts & 5 pts & Finalizado \\
+        SCRUM-22 & Colocar Datos en la UI & [SW-DESK-01] & 5 pts & 5 pts & Finalizado \\
+        SCRUM-23 & Crear BD para los datos & [SW-STORAGE-01] & 2 pts & 2 pts & Finalizado \\
+        SCRUM-24 & Pruebas medición con placa LEDs y adaptación de carcasa & [SW-QA-01] & 8 pts & 8 pts & Finalizado \\
+        SCRUM-25 & Generador CSV & [SW-REPORT-01] & 3 pts & 3 pts & Finalizado \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 3.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total estimado inicialmente:} 25 \textit{Story Points} (en el \textit{Sprint Backlog} original).
+    \item \textbf{Total real del sprint:} 25 \textit{Story Points}.
+    \item \textbf{Tasa de finalización:} 25/25 (100\%).
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint}
+Durante la fase de planificación (\textit{Sprint Planning}), se programaron 25 puntos de historia. El foco de esta iteración evolucionó desde la formalización hacia la implementación técnica real, centrándose principalmente en la interfaz de usuario, la consolidación de la capa de almacenamiento (SQLite y CSV) y la validación del hardware (placa de LEDs y carcasa).
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, mostró el siguiente progreso a lo largo de la iteración:
+
+\begin{itemize}
+    \item \textbf{10 al 12 de abril:} Fase de arranque. La línea de progreso (roja) se mantiene en los 25 puntos originales, indicando el inicio del desarrollo simultáneo de las tareas como la interfaz gráfica y las pruebas de hardware.
+    \item \textbf{12 y 13 de abril:} Primeros cierres formales, registrando dos caídas consecutivas que reducen el trabajo pendiente de 25 a 21 puntos al cierre de tareas menores como la documentación y la creación de la BD.
+    \item \textbf{14 de abril:} Reducción escalonada hasta los 18 puntos, indicando la finalización del módulo de generación de CSV.
+    \item \textbf{15 y 16 de abril:} Consolidación final. Se produce el cierre de las tareas más pesadas, la interfaz gráfica y las pruebas de hardware, terminando el gráfico desde los 18 hasta los 0 puntos en la recta final del \textit{sprint}.
+\end{itemize}
+
+\imagen{Sprints/burnDownS3.png}{Evolución del trabajo y gráfico burn-down del Sprint 3. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Desviación respecto a la línea ideal:} La curva real se mantuvo por encima de la línea ideal (gris) durante casi todo el ciclo. Este patrón, conocido como \textit{Late Drop} (caída tardía), es habitual cuando el \textit{sprint} contiene tareas de gran peso (como los 8 puntos de la tarea relacionada con las pruebas de medición con las placas LED y la adaptación de la carcasa) que no pueden cerrarse hasta estar completamente testadas.
+    \item \textbf{Estabilidad del alcance:} La parte superior del gráfico se mantuvo plana, lo que confirma que no hubo inyección de tareas imprevistas durante la iteración.
+    \item \textbf{Aumento de velocidad:} Se logró un incremento significativo en la capacidad de entrega, pasando de absorber 16 puntos en el Sprint 1 a completar exitosamente \textbf{25 puntos} en este Sprint 3 dentro de la misma franja de 7 días.
+    \item No se reportaron cuellos de botella críticos, logrando una sincronización exitosa entre el desarrollo de software y las pruebas físicas de hardware.
+\end{itemize}
+
+\subsection{Sprint 4: Inicio del Modelo de Clasificación y Verificación de Interfaz}
+
+\begin{itemize}
+    \item \textbf{Período:} 17 de abril - 23 de abril de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Comenzar con el desarrollo y preparación de los modelos de clasificación, finalizar el prototipo físico para la toma de muestras, y verificar de forma exhaustiva la funcionalidad de la interfaz y la comunicación hardware.
+    \item \textbf{Esfuerzo estimado:} 20 horas de desarrollo (\textit{Story Points}).
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \midrule
+        SCRUM-26 & Documentar Sprint Anterior & [SW-DOCS-01] & 2 pts & 2 pts & Finalizado \\
+        SCRUM-27 & Revisar Datos Interfaz & [SW-QA-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-28 & Hacer Prueba del modelo & [SW-AI-01] & 8 pts & 8 pts & Finalizado \\
+        SCRUM-29 & Comprobar comunicación serial & [SW-QA-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-30 & Comprobar controles por la interfaz & [SW-QA-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-31 & Finalizar Diseño Carcasa & [SW-HW-01] & 3 pts & 3 pts & Finalizado \\
+        SCRUM-32 & Adaptar control luces con las nuevas placas de los LEDs & [SW-HW-01] & 4 pts & 4 pts & Finalizado \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 4.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total estimado inicialmente:} 20 \textit{Story Points} (en el \textit{Sprint Backlog} original).
+    \item \textbf{Total real del sprint:} 20 \textit{Story Points}.
+    \item \textbf{Tasa de finalización:} 20/20 (100\%).
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint}
+Durante la fase de planificación (\textit{Sprint Planning}), se programaron 20 puntos de historia con un enfoque claro en la integración y validación. El esfuerzo se distribuyó en tres frentes: la finalización del hardware (diseño de la carcasa y adaptación de placas LED) para permitir el registro de medidas sobre muestras reales; la verificación minuciosa de la interfaz y la comunicación serie (identificando y corrigiendo posibles fallos en los controles); y la preparación de las primeras pruebas reales del modelo de clasificación.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, mostró el siguiente progreso a lo largo de la iteración:
+
+\begin{itemize}
+    \item \textbf{17 al 19 de abril:} Fase de desarrollo e integración. La línea de progreso (roja) se mantiene plana en los 20 puntos originales, indicando un periodo de trabajo activo en modificaciones de hardware y ajustes de interfaz sin cierres formales.
+    \item \textbf{20 de abril:} Se registra el primer cierre formal de la iteración (correspondiente a labores de documentación), reduciendo el trabajo pendiente de 20 a 18 puntos de historia.
+    \item \textbf{21 y 22 de abril:} El día 22 marca la finalización de los componentes físicos. Se observa una caída pronunciada: primero baja a 15 puntos (cierre del diseño de la carcasa) y posteriormente a 11 puntos (adaptación del control de luces LED).
+    \item \textbf{23 de abril:} Consolidación y validación final. En la última jornada se agrupan múltiples cierres consecutivos de tareas de QA (comprobación de controles, datos y comunicación serial), reduciendo el marcador de 11 a 10, luego a 9 y a 8. Finalmente, el cierre de la tarea más compleja (prueba del modelo) desploma el gráfico a 0 puntos.
+\end{itemize}
+
+\imagen{Sprints/burnDownS4.png}{Evolución del trabajo y gráfico burn-down del Sprint 4. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Comportamiento en cascada (\textit{Late Drop}):} La gran mayoría del peso del \textit{sprint} se liberó en las últimas 48 horas del ciclo. Este patrón refleja la alta dependencia estructural de este ciclo: no se podían validar los controles de la interfaz ni probar el modelo hasta no tener el hardware (carcasa y LEDs) firmemente adaptado, unido al tiempo empleado en los entrenamientos y la búsqueda de alternativas en la nube para acelerar el proceso.
+    \item \textbf{Estabilidad del alcance:} La línea superior de puntos se mantuvo inalterada a lo largo del periodo, confirmando una planificación precisa sin introducción de tareas imprevistas (\textit{scope creep}).
+    \item \textbf{Validación integral:} Se logró completar el 100\% de las tareas  dentro del marco temporal.
+\end{itemize}
+
+\subsection{Sprint 5: Integración del Modelo IA y Ampliación de la Interfaz}
+
+\begin{itemize}
+    \item \textbf{Período:} 24 de abril - 30 de abril de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Integrar el modelo de Inteligencia Artificial dentro del flujo de la aplicación, implementar el módulo visual para la consulta del histórico de análisis, y habilitar la configuración dinámica de parámetros desde la interfaz gráfica.
+    \item \textbf{Esfuerzo estimado:} 22 horas de desarrollo (\textit{Story Points}).
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \midrule
+        SCRUM-33 & Documentar Sprint Anterior & [SW-DOCS-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-35 & Incorporar ventana históricos & [SW-DESK-01] & 8 pts & 8 pts & Finalizado \\
+        SCRUM-34 & Incorporar Modelo & [SW-ANALYSIS-01] & 8 pts & 8 pts & Finalizado \\
+        SCRUM-36 & Permitir cambiar parámetros de análisis desde la interfaz & [SW-DESK-01] & 5 pts & 5 pts & Finalizado \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 5.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total estimado inicialmente:} 22 \textit{Story Points} (en el \textit{Sprint Backlog} original).
+    \item \textbf{Total real del sprint:} 22 \textit{Story Points}.
+    \item \textbf{Tasa de finalización:} 22/22 (100\%).
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint}
+Durante la fase de planificación (\textit{Sprint Planning}), se programaron 22 puntos de historia. Esta iteración representó un hito en el acoplamiento de los diferentes subsistemas. El esfuerzo se focalizó en dos áreas principales: por un lado, la incorporación del modelo de clasificación al núcleo de la aplicación, conectando las lecturas del hardware con las predicciones del modelo; por otro lado, la ampliación de la interfaz gráfica añadiendo una ventana de persistencia histórica y permitiendo al usuario inyectar parámetros de análisis de forma dinámica.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, mostró el siguiente progreso a lo largo de la iteración:
+
+\begin{itemize}
+    \item \textbf{24 de abril:} Inicio del ciclo. Se registra un cierre temprano asociado a labores de gestión documental, reduciendo el total pendiente de 22 a 21 puntos.
+    \item \textbf{25 al 27 de abril:} Fase de desarrollo pesado. La curva (roja) se mantiene en los 21 puntos, denotando un periodo de implementación ininterrumpida sin finalización formal de tareas debido a la alta carga técnica de la interfaz de históricos y el modelo IA (8 puntos respectivamente).
+    \item \textbf{28 de abril:} Primer hito de integración visual. Se produce el cierre de la ventana de históricos, marcando un descenso pronunciado en el gráfico desde los 21 hasta los 13 puntos.
+    \item \textbf{29 de abril:} Consolidación del núcleo algorítmico y visual. En esta jornada se produce un cierre masivo en dos fases: inicialmente el gráfico cae a 5 puntos (tras la exitosa incorporación del modelo predictivo) y, posteriormente, culmina su descenso a 0 puntos con la validación de la configuración de parámetros dinámicos desde la interfaz.
+\end{itemize}
+
+\imagen{Sprints/burnDownS5.png}{Evolución del trabajo y gráfico burn-down del Sprint 5. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Patrón de entrega orientada a valor:} A diferencia de \textit{sprints} anteriores donde había micro-tareas, aquí se han gestionado épicas más grandes (tareas de 8 puntos). La caída brusca en los días 28 y 29 demuestra que las funcionalidades se probaron y validaron como bloques enteros antes de darse por terminadas.
+    \item \textbf{Estabilidad y madurez del alcance:} La precisión milimétrica entre la estimación inicial y la finalización (100\% de las tareas cerradas antes de finalizar el día 29) confirma la madurez adquirida en la estimación del esfuerzo algorítmico y de interfaz gráfica.
+    \item \textbf{Rendimiento sostenido:} Se ha logrado estabilizar su velocidad (\textit{velocity}) en la franja de los 20-25 puntos por iteración, demostrando una cadencia de trabajo altamente predecible y eficiente para las fases venideras del proyecto.
+\end{itemize}
+
+\subsection{Sprint 6: Ajustes de Predicción, Calibración y Replanificación Activa}
+
+\begin{itemize}
+    \item \textbf{Período:} 1 de mayo - 7 de mayo de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Refinar el proceso de entrenamiento del modelo, integrar la lógica predictiva al tomar muestras en tiempo real y garantizar la consistencia visual de los datos históricos. Adicionalmente, adaptar la planificación para incluir funcionalidades de calibración requeridas para la inminente fase de toma de muestras.
+    \item \textbf{Esfuerzo estimado original:} 20 horas de desarrollo (\textit{Story Points}).
+    \item \textbf{Esfuerzo total gestionado (tras cambios):} 25 \textit{Story Points}.
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \midrule
+        SCRUM-38 & Documentar Sprint Anterior & [SW-DOCS-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-37 & Verificar consistencia datos y vista de datos & [SW-QA-01] & 2 pts & 2 pts & Finalizado \\
+        SCRUM-39 & Acabar entrenamientos y probar el funcionamiento del modelo & [SW-AI-01] & 5 pts & 5 pts & Finalizado \\
+        SCRUM-42 & Añadir lógica predicción al tomar una muestra & [SW-DESK-01] & 5 pts & 5 pts & Finalizado \\
+        SCRUM-40 & Revisar memoria y actualizar cambios & [SW-DOCS-01] & 2 pts & 2 pts & Finalizado \\
+        \rowcolor{red!15} SCRUM-41 & Añadir botón predecir muestras pasadas & [SW-DESK-01] & 5 pts & 5 pts & \textbf{Bloqueada} \\
+        \rowcolor{green!15} SCRUM-43 & Añadir botón y lógica calibración (Inyectada) & [SW-HW-01] & - & 5 pts & Finalizado \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 6.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total completado:} 20 \textit{Story Points} (excluyendo la tarea bloqueada).
+    \item \textbf{Tasa de finalización efectiva:} 80\% (20/25 puntos totales gestionados en el tablero). \textit{El 100\% de las tareas planificadas fueron completadas; el 80\% corresponde al cómputo incluyendo la tarea bloqueada.}
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint y Replanificación Activa}
+Durante la \textit{Sprint Planning}, se programaron inicialmente 20 puntos. Sin embargo, la ejecución del ciclo requirió una adaptación táctica del \textit{Product Backlog}.
+
+Por un lado, la tarea \textbf{SCRUM-41} (5 pts) quedó en estado \textbf{Bloqueada}. Esto fue debido a dependencias técnicas no resueltas en la arquitectura de datos subyacente, impidiendo su correcta integración en este ciclo. Por otro lado, ante la inminencia del siguiente \textit{sprint} (destinado a la captura de muestras reales), se identificó como crítica la necesidad de calibrar el sensor de forma interactiva. Por ello, en una clara demostración de agilidad, se \textbf{inyectó anticipadamente la tarea SCRUM-43} (5 pts) al \textit{sprint backlog}, compensando el esfuerzo de la tarea bloqueada y garantizando la viabilidad de la siguiente fase del proyecto.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, ilustra visualmente estos cambios de alcance:
+
+\begin{itemize}
+    \item \textbf{1 y 2 de mayo:} Configuración del tablero. El gráfico muestra una carga inicial masiva de tareas el día 2, elevando la línea de trabajo pendiente bruscamente hasta los 20 puntos de historia.
+    \item \textbf{3 de mayo:} Primer cierre. Se completa la documentación del \textit{sprint} anterior (SCRUM-38), reduciendo el trabajo pendiente a 19 puntos.
+    \item \textbf{4 y 5 de mayo:} Ejecución y validación. El día 5 se produce una caída significativa del gráfico (de 19 a 12, y luego a 7 puntos). Esto refleja el cierre simultáneo de la verificación de datos (SCRUM-37), la lógica de predicción en tiempo real (SCRUM-42) y las pruebas de entrenamiento del modelo (SCRUM-39).
+    \item \textbf{6 de mayo (Punto de inflexión):} Se observa un \textbf{pico ascendente} en el gráfico, pasando de 7 a 12 puntos de trabajo pendiente. Esto refleja el momento exacto en el que se inyecta al \textit{sprint} la tarea imprevista de calibración (SCRUM-43). Ese mismo día, la tarea es desarrollada y cerrada, devolviendo la gráfica a los 7 puntos originales.
+    \item \textbf{7 de mayo:} Cierre administrativo. Se finaliza la revisión de la memoria (SCRUM-40), reduciendo el gráfico a 5 puntos pendientes. Estos 5 puntos finales corresponden a la tarea SCRUM-41, la cual finaliza el ciclo en estado bloqueado y pasará al \textit{backlog} de futuras iteraciones.
+\end{itemize}
+
+\imagen{Sprints/burnDownS6.png}{Evolución del trabajo y gráfico burn-down del Sprint 6. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Gestión del \textit{Scope Creep} y adaptación:} El pico ascendente del 6 de mayo evidencia la flexibilidad del marco ágil. Lejos de ser un fallo de planificación, la inyección de la tarea de calibración fue una decisión estratégica para desatascar las dependencias físicas del hardware de cara al siguiente \textit{sprint}.
+    \item \textbf{Transparencia en el bloqueo:} La retención de la tarea SCRUM-41 demuestra un control de calidad riguroso, evitando integrar código no funcional (\textit{technical debt}) en la rama principal (\textit{main}).
+    \item \textbf{Mantenimiento de la velocidad:} A pesar de las fricciones y el cambio de contexto (\textit{context switching}), se logró completar \textbf{20 puntos de historia reales}, manteniendo la línea de velocidad establecida en ciclos anteriores y asegurando la preparación del sistema para la toma de muestras empíricas.
+\end{itemize}
+
+\subsection{Sprint 7: Toma de Muestras Empíricas, Refactorización y Ajustes}
+
+\begin{itemize}
+    \item \textbf{Período:} 7 de mayo - 14 de mayo de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Realizar la toma de muestras físicas en entorno real, integrar los resultados de calibración en la lógica de análisis, refactorizar el código base para mejorar su mantenibilidad y realizar ajustes finos en la interfaz de usuario.
+    \item \textbf{Esfuerzo total gestionado:} 26 horas de desarrollo (\textit{Story Points}), incluyendo el remanente bloqueado del ciclo anterior.
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+\centering
+\rowcolors{2}{gray!35}{}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l p{6.5cm} l c c c}
+\toprule
+\textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+\midrule
+SCRUM-44 & Documentar Sprint Anterior & [SW-DOCS-01] & 1 pts & 1 pts & Finalizado \\
+SCRUM-45 & Reorganizar el código & [SW-CORE-01] & 8 pts & 8 pts & Finalizado \\
+SCRUM-46 & Ajustar con resultado de calibraciones & [SW-AI-01] & 4 pts & 4 pts & Finalizado \\
+SCRUM-47 & Revisar lógica análisis y mostrado de datos & [SW-QA-01] & 5 pts & 5 pts & Finalizado \\
+SCRUM-48 & Ajustar tamaños interfaz & [SW-DESK-01] & 3 pts & 3 pts & Finalizado \\
+\rowcolor{red!15} SCRUM-41 & Añadir botón predecir muestras pasadas & [SW-DESK-01] & 5 pts & 5 pts & \textbf{Bloqueada} \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Catálogo de tareas del Sprint 7.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total completado:} 21 \textit{Story Points}.
+    \item \textbf{Tasa de finalización efectiva:} 100\% de las nuevas tareas planificadas (21/21 pts). La tarea heredada SCRUM-41 mantiene su estado bloqueado (5 pts pendientes).
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint y Replanificación por Trabajo de Campo}
+Este \textit{sprint} presentó una dinámica atípica debido a la interacción directa con el entorno físico. Los primeros días de la iteración se dedicaron de forma exclusiva al trabajo de campo: la toma de medidas físicas con el prototipo sobre muestras reales de miel. Esta fase empírica generó una latencia natural en la definición técnica de los siguientes pasos. Una vez recolectados y analizados los datos iniciales, se definieron e inyectaron las nuevas tareas al \textit{Product Backlog}, priorizando la integración de las calibraciones y una profunda refactorización del código (8 puntos) para preparar el sistema de cara a su versión final.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, ilustra de forma clara el impacto del trabajo de campo en la planificación técnica:
+
+\begin{itemize}
+    \item \textbf{7 al 10 de mayo:} Fase de trabajo empírico. El gráfico arranca mostrando únicamente los 5 puntos heredados de la tarea bloqueada (SCRUM-41). Durante estos días no se registra actividad de desarrollo de software, ya que el esfuerzo estaba concentrado en la captura física de muestras.
+    \item \textbf{11 de mayo (Pico de inyección):} Tras analizar los resultados de las muestras, se definen las necesidades técnicas y se inyectan 21 nuevos puntos de historia al tablero, provocando un salto vertical abrupto en la gráfica hasta alcanzar los 26 puntos totales. Ese mismo día se produce el primer cierre (documentación, bajando a 25 puntos).
+    \item \textbf{12 de mayo:} Consolidación analítica. Se cierran simultáneamente las tareas de ajuste de calibraciones (4 pts) y la revisión de la lógica de análisis (5 pts), provocando una caída pronunciada de 9 puntos que sitúa el trabajo pendiente en 16.
+    \item \textbf{13 de mayo:} Hito de arquitectura. Se finaliza la tarea de mayor peso del \textit{sprint} (Reorganizar el código, 8 pts), reduciendo el gráfico de 16 a 8 puntos.
+    \item \textbf{14 de mayo:} Cierre visual. Se completa el ajuste de los tamaños de la interfaz gráfica (3 pts). El \textit{sprint} finaliza con la curva estabilizada en 5 puntos, correspondientes a la tarea SCRUM-41 que permanece a la espera de desbloqueo.
+\end{itemize}
+
+\imagentamano{Sprints/burnDownS7.png}{Evolución del trabajo y gráfico burn-down del Sprint 7. Fuente: Elaboración Propia.}{1}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Flexibilidad metodológica:} El gráfico ilustra un escenario real de adaptación ágil. La inyección masiva de tareas en el día 11 no representa un fallo de planificación, sino una respuesta técnica directa a los descubrimientos realizados durante los dos días de trabajo físico de campo.
+    \item \textbf{Deuda técnica y refactorización:} La asignación de 8 puntos a la ``Reorganización del código'' demuestra madurez en la gestión del ciclo de vida del software. Tras la rápida iteración de los \textit{sprints} anteriores para conseguir un prototipo funcional, se priorizó reducir la deuda técnica antes de escalar el sistema.
+    \item \textbf{Alta velocidad de resolución:} A pesar del retraso inicial en la definición de tareas, se demostró una gran eficiencia al desarrollar, probar y cerrar 21 puntos de historia en un marco temporal comprimido de apenas 4 días (del 11 al 14 de mayo).
+\end{itemize}
+
+\subsection{Sprint 8: Consolidación Documental y Pruebas de Despliegue}
+
+\begin{itemize}
+    \item \textbf{Período:} 15 de mayo - 22 de mayo de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Volcar los descubrimientos y desarrollos técnicos en la memoria del proyecto (documentación de avances), alinear la redacción con los resultados de las pruebas empíricas, e iniciar la fase de empaquetado del software para su distribución como ejecutable independiente.
+    \item \textbf{Esfuerzo total gestionado:} 26 horas de desarrollo (\textit{Story Points}), incluyendo tareas redefinidas de ciclos anteriores.
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \otoprule
+        SCRUM-51 & Documentar sprint anterior & [SW-DOCS-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-49 & Documentar Avances & [SW-DOCS-01] & 15 pts & 15 pts & Finalizado \\
+        SCRUM-50 & Ajustar avances con las pruebas & [SW-QA-01] & 5 pts & 5 pts & Finalizado \\
+        \rowcolor{red!15} SCRUM-41 & Hacer ejecutable y probar compatibilidad & [SW-DEPLOY-01] & 5 pts & 5 pts & \textbf{Bloqueada} \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 8.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total completado:} 21 \textit{Story Points}.
+    \item \textbf{Tasa de finalización efectiva:} 80\% (21/26 pts). La tarea SCRUM-41 finaliza el ciclo en estado bloqueado debido a incidencias de compatibilidad.
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint y Evolución de Tareas}
+Durante la planificación de este ciclo, el enfoque cambió drásticamente desde la implementación de código hacia la consolidación académica y documental. Se asignó una épica de gran tamaño (15 puntos) a la redacción y estructuración de los avances en la memoria del TFG. 
+
+La tarea \textbf{SCRUM-41} fue redefinida (\textit{re-scoped}) hacia la creación del ejecutable final y la prueba de compatibilidad multiplataforma. Sin embargo, finalmente la tarea resultó \textbf{bloqueada} ante la falta del desarrollo de las exportaciones de los análisis a \textbf{PDF}. Unido a ello, el empaquetado de aplicaciones Python que integran ecosistemas complejos (como los binarios de TensorFlow para la IA y las librerías dinámicas de PyQt6 para la interfaz) suele generar conflictos de dependencias o rutas relativas al compilarse en un único ejecutable, requiriendo una investigación más profunda que excedía el marco temporal de este \textit{sprint}.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, muestra un patrón extremo de \textit{Late Drop} característico de las tareas de documentación:
+
+\begin{itemize}
+    \item \textbf{15 y 16 de mayo:} Inicio del ciclo con 26 puntos. El día 16 se produce una pequeña caída de 1 punto correspondiente al cierre de la documentación rutinaria del \textit{sprint} anterior (SCRUM-51), dejando el marcador en 25 puntos.
+    \item \textbf{17 al 20 de mayo:} Valle de desarrollo continuo. La línea de progreso (roja) se mantiene completamente horizontal en los 25 puntos durante cuatro días consecutivos. Este comportamiento es el reflejo directo de estar trabajando en una tarea monolítica de 15 puntos ("Documentar Avances") que no puede fragmentarse y no se considera terminada hasta que la revisión completa del documento está lista.
+    \item \textbf{21 de mayo (Caída masiva):} Consolidación del trabajo. En una misma jornada se da por finalizada y validada la redacción de los avances (15 pts) y su ajuste y coherencia con las pruebas realizadas (5 pts). Esto provoca un desplome vertical en el gráfico de 20 puntos en un solo día, situando la curva en la marca de los 5 puntos.
+    \item \textbf{22 de mayo:} Cierre del \textit{sprint}. El ciclo finaliza sin más descensos. La línea roja se estabiliza en 5 puntos, los cuales corresponden a la tarea de empaquetado (SCRUM-41) que queda bloqueada a la espera de resolución.
+\end{itemize}
+
+\imagentamano{Sprints/burnDownS8.png}{Evolución del trabajo y gráfico burn-down del Sprint 8. Fuente: Elaboración Propia.}{1}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Gestión de tareas monolíticas:} La gráfica ilustra perfectamente el impacto de incluir tareas de muy alta puntuación (15 pts) en un \textit{sprint} corto. Aunque la metodología ágil sugiere subdividir estas historias para ver una progresión más escalonada, la naturaleza indivisible de la redacción de un capítulo de memoria justifica esta alteración en la curva ideal.
+    \item \textbf{Identificación temprana de riesgos:} El bloqueo de la tarea de despliegue y compatibilidad sirve como alerta temprana (\textit{early warning}). Al haber intentado el empaquetado en el Sprint 8 y no al final del proyecto, se cuenta con margen de maniobra suficiente para investigar y solucionar los conflictos del empaquetador (ej. PyInstaller) sin poner en riesgo la entrega final.
+\end{itemize}
+
+\subsection{Sprint 9: Calidad de Código, Informes y Despliegue Final}
+
+\begin{itemize}
+    \item \textbf{Período:} 21 de mayo - 28 de mayo de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Implementar la lógica de generación de informes de resultados, asegurar la calidad del código mediante análisis estático (SonarQube) y, finalmente, resolver las incidencias de empaquetado para generar el ejecutable de la aplicación.
+    \item \textbf{Esfuerzo total gestionado:} 16 horas de desarrollo (\textit{Story Points}), incluyendo la resolución de la tarea bloqueada en el ciclo previo.
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \otoprule
+        SCRUM-54 & Documentar Sprint anterior & [SW-DOCS-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-52 & Hacer lógica generación de informes & [SW-REPORT-01] & 5 pts & 5 pts & Finalizado \\
+        SCRUM-53 & Verificar código SonarQube & [SW-QA-01] & 5 pts & 5 pts & Finalizado \\
+        \rowcolor{green!15} SCRUM-41 & Hacer ejecutable y probar compatibilidad (Desbloqueada) & [SW-DEPLOY-01] & 5 pts & 5 pts & Finalizado \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 9.}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Total completado:} 16 \textit{Story Points}.
+    \item \textbf{Tasa de finalización efectiva:} 100\% (16/16 pts). Se logró desbloquear y completar la tarea de compatibilidad, cerrando el ciclo sin tareas pendientes.
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint y Refinamiento del Alcance}
+Este ciclo destaca por una fase de planificación atípica. Inicialmente, el \textit{sprint} arrancó únicamente con la tarea heredada (SCRUM-41), lo que generó un desajuste temporal en el tablero. A lo largo de la primera jornada, tras una sesión de refinamiento, se inyectaron progresivamente las tareas restantes (generación de informes y auditoría con SonarQube) hasta conformar el alcance real de 16 puntos. Durante la ejecución, el esfuerzo técnico se dividió equitativamente entre la generación de valor funcional (informes), el aseguramiento de la calidad (análisis de código) y la superación del escollo técnico del empaquetador multiplataforma.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, ilustra perfectamente la inserción progresiva de tareas y la posterior estabilización del ritmo de desarrollo:
+
+\begin{itemize}
+    \item \textbf{21 de mayo (Día de planificación activa):} El gráfico inicia mostrando un comportamiento vertical ascendente inusual. Arranca en 5 puntos (tarea heredada) y sufre inyecciones consecutivas a medida que se añaden las nuevas historias al tablero, escalando hasta los 16 puntos totales. Este arranque escalonado es el causante de que la "línea de guía" (gris) adquiera una pendiente más suave de lo habitual.
+    \item \textbf{22 de mayo:} Se registra la primera caída de 1 punto (de 16 a 15) tras finalizar la labor documental del \textit{sprint} anterior (SCRUM-54).
+    \item \textbf{24 de mayo:} Cierre funcional. Se finaliza la lógica de generación de informes (SCRUM-52), provocando un descenso de 5 puntos que sitúa la curva en 10.
+    \item \textbf{25 de mayo:} Hito de calidad. La superación de las métricas de SonarQube (SCRUM-53) resta otros 5 puntos de historia, dejando el gráfico en 5 puntos a mitad del ciclo.
+    \item \textbf{26 y 27 de mayo:} Periodo de investigación y pruebas exhaustivas enfocadas exclusivamente en resolver las dependencias del ejecutable.
+    \item \textbf{28 de mayo:} Cierre definitivo. En la última jornada se logra empaquetar la aplicación con éxito (SCRUM-41), desplomando la gráfica a 0 puntos y cerrando el ciclo de forma óptima.
+\end{itemize}
+
+\imagen{Sprints/burnDownS9.png}{Evolución del trabajo y gráfico burn-down del Sprint 9. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Justificación de la desviación de la línea ideal:} El desajuste visual entre la línea roja de trabajo real y la línea gris de tendencia ideal no representa un retraso en la entrega, sino un artefacto visual provocado por la inserción tardía de las estimaciones en el sistema de gestión (Jira) durante el primer día.
+    \item \textbf{Resolución de deuda técnica:} El desbloqueo y finalización de la tarea SCRUM-41 valida la decisión tomada en el \textit{sprint} anterior de posponerla. El tiempo invertido en este ciclo permitió aislar las incompatibilidades de las librerías gráficas y de IA, logrando un ejecutable estable.
+    \item \textbf{Aseguramiento de Calidad (QA):} La inclusión formal de una tarea de revisión con SonarQube (5 pts) demuestra un enfoque profesional hacia la mantenibilidad, garantizando que el código entregado cumple con los estándares académicos y de la industria antes de su presentación.
+\end{itemize}
+
+\subsection{Sprint 10: Cierre de Proyecto, Revisión y Entregables Finales}
+
+\begin{itemize}
+    \item \textbf{Período:} 28 de mayo - 4 de junio de 2026 (7 días).
+    \item \textbf{Objetivo del Sprint:} Consolidar la versión definitiva de la aplicación (\textit{build}), finalizar la redacción de la memoria académica y preparar todos los entregables anexos, garantizando un margen de tiempo para la revisión exhaustiva antes de la entrega del TFG programada para el 9 de junio.
+    \item \textbf{Esfuerzo estimado:} 21 horas de desarrollo (\textit{Story Points}).
+\end{itemize}
+
+\subsubsection{Catálogo de Tareas}
+
+\begin{table}[H]
+    \centering
+    \rowcolors{2}{gray!35}{}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l p{6.5cm} l c c c}
+        \toprule
+        \textbf{ID Tarea} & \textbf{Descripción} & \textbf{Epic} & \textbf{Est. Inicial} & \textbf{Est. Final} & \textbf{Estado} \\
+        \otoprule
+        SCRUM-56 & Documentar Sprint Anterior & [SW-DOCS-01] & 1 pts & 1 pts & Finalizado \\
+        SCRUM-55 & Finalizar Build & [SW-DEPLOY-01] & 3 pts & 3 pts & Finalizado \\
+        SCRUM-57 & Finalizar Documentos & [SW-DOCS-01] & 13 pts & 13 pts & Finalizado \\
+        SCRUM-58 & Preparar Entregables & [SW-DOCS-01] & 4 pts & 4 pts & Finalizado \\
+        \bottomrule
+    \end{tabular}%
+    }
+    \caption{Catálogo de tareas del Sprint 10.}
+\end{table}
+\newpage
+\begin{itemize}
+    \item \textbf{Total completado:} 21 \textit{Story Points}.
+    \item \textbf{Tasa de finalización efectiva:} 100\% (21/21 pts). Todas las tareas se completaron exitosamente antes del fin del ciclo.
+\end{itemize}
+
+\subsubsection{Dinámica del Sprint y Estrategia de Cierre}
+Durante la planificación de este último ciclo, se programaron 21 puntos de historia con una estrategia de ejecución comprimida. Conscientes de la importancia de la fase de validación, se priorizó finalizar la compilación definitiva del software (\textit{build}) y la carga documental más pesada (la memoria final, valorada en 13 puntos) de forma anticipada. Esta compresión temporal se diseñó intencionadamente para crear un periodo de verificación al final del \textit{sprint}, permitiendo una revisión global, lectura de correcciones y auditoría de los entregables sin la presión de la fecha límite.
+
+\subsubsection{Análisis del gráfico Burn-Down}
+
+La evolución del trabajo, reflejada en el diagrama \textit{burn-down}, muestra el comportamiento típico de un cierre de proyecto o \textit{Release Sprint}:
+
+\begin{itemize}
+    \item \textbf{28 y 29 de mayo:} Inicio del ciclo en 21 puntos. El día 29 se registra una ligera caída a 20 puntos, correspondiente al cierre de las labores rutinarias de documentación del ciclo previo (SCRUM-56).
+    \item \textbf{30 de mayo al 1 de junio:} Fase de revisión y compilación. La curva (roja) se mantiene plana en los 20 puntos. Durante estos días se llevó a cabo la redacción profunda de la memoria y la generación de los ejecutables finales, tareas que, por su naturaleza, no admitían cierres parciales.
+    \item \textbf{2 de junio (Día de consolidación):} Se produce un desplome vertical masivo en el gráfico. En una misma jornada se da por validada la \textit{build} final (3 pts), se aprueba la versión definitiva de los documentos (13 pts) y se empaquetan los entregables (4 pts). El gráfico cae de 20 a 0 puntos de forma inmediata.
+    \item \textbf{3 y 4 de junio:} El \textit{sprint} finaliza formalmente con 0 puntos pendientes. Estos días se utilizaron como margen de revisión y preparación, cumpliendo con la estrategia de planificación inicial.
+\end{itemize}
+
+\imagen{Sprints/burnDownS10.png}{Evolución del trabajo y gráfico burn-down del Sprint 10. Fuente: Elaboración Propia.}
+
+\noindent\textbf{Observaciones clave:}
+\begin{itemize}
+    \item \textbf{Cierre en bloque (\textit{Late Drop} extremo):} La caída en picado del 2 de junio es indicativa de una fase de Control de Calidad (QA) global. En la recta final del proyecto, la compilación y la memoria no pueden cerrarse de forma aislada, ya que cualquier modificación de última hora en el código requiere actualizar la documentación asociada.
+    \item \textbf{Cumplimiento holístico:} Se completó el 100\% del alcance con antelación, validando la eficacia de la metodología ágil adoptada. La velocidad constante mantenida durante los \textit{sprints} anteriores permitió afrontar esta última semana sin arrastrar deuda técnica, garantizando la calidad final del producto HIVES.
+\end{itemize}
+\FloatBarrier
+\section{Estudio de viabilidad}
+
+Para confirmar la factibilidad del proyecto, se ha llevado a cabo un análisis
+estructurado que evalúa diversas áreas clave:
+
+\subsubsection*{Viabilidad técnica}
+
+Para la correcta ejecución del desarrollo, se ha configurado un repositorio de
+código compartido con el equipo de tutorización. Esta medida permite mantener un
+control de versiones centralizado y preciso, garantizando el registro histórico y la
+trazabilidad de todos los cambios implementados. Adicionalmente, se ha integrado la
+herramienta SonarQube con el propósito de evaluar de forma continua y asegurar la
+calidad del código fuente desarrollado.
+
+En lo relativo al entrenamiento del modelo de red neuronal, las fases de
+experimentación y ajuste de hiperparámetros se han llevado a cabo mediante la
+plataforma \textbf{Google Colaboratory Pro} (Colab Pro). Esta herramienta
+proporciona acceso bajo demanda a unidades de procesamiento gráfico (GPU) de
+alto rendimiento en la nube, lo que ha permitido reducir significativamente los
+tiempos de entrenamiento y ejecutar un elevado número de iteraciones experimentales
+en un período reducido. La dependencia de esta plataforma queda restringida
+exclusivamente a la fase de entrenamiento; la inferencia del modelo en producción se
+ejecuta de forma íntegramente local en la estación de trabajo del usuario, en
+cumplimiento con el requisito no funcional RNF-04.
+\subsubsection*{Viabilidad temporal}
+
+Tal y como se ha expuesto anteriormente, el seguimiento de la viabilidad temporal
+del proyecto se ha gestionado mediante la herramienta Jira. Esto ha posibilitado una
+monitorización rigurosa tanto del flujo de tareas como del tiempo efectivo invertido
+en el desarrollo de cada una de ellas.
+
+\subsubsection*{Viabilidad económica}
+El análisis económico del proyecto se fundamenta en la cuantificación de las horas
+dedicadas a su desarrollo. A partir del registro de Story Points de cada sprint, se obtiene una dedicación total de
+\textbf{199 horas} de desarrollo, tal y como se detalla a continuación:
+\newpage
+\begin{table}[H]
+  \centering
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{Iteración} & \textbf{Horas (Story Points)} \\
+    \midrule
+    Sprint 1  & 16 \\
+    Sprint 2  & 17 \\
+    Sprint 3  & 25 \\
+    Sprint 4  & 20 \\
+    Sprint 5  & 22 \\
+    Sprint 6  & 20 \\
+    Sprint 7  & 21 \\
+    Sprint 8  & 21 \\
+    Sprint 9  & 16 \\
+    Sprint 10 & 21 \\
+    \midrule
+    \textbf{Total} & \textbf{199} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Desglose de horas de desarrollo por sprint.}
+\end{table}
+
+Tomando como referencia las condiciones salariales del mercado actual para un
+Ingeniero Informático en España en 2026, el salario estimado de un programador
+junior~\cite{ilerna_salario_2024} se sitúa en torno a los \textbf{20.436,01\,€ brutos anuales}.
+Esta cifra equivale a un coste aproximado de \textbf{11,35\,€/hora} de trabajo, contando
+con unas 1.800 horas de trabajo anuales, lo que supone un \textbf{coste directo de
+desarrollo estimado en 2.258,65\,€}.
+
+No obstante, el coste real para la empresa no se limita al salario bruto del trabajador.
+A este importe deben añadirse las \textbf{cotizaciones a la Seguridad Social} a cargo del empleador \cite{minsss2026cotizacion}, que en España ascienden aproximadamente a un \textbf{33\,\%} sobre el salario
+bruto, desglosadas principalmente en contingencias comunes (23,60\,\%), desempleo
+(5,50\,\%), formación profesional (0,60\,\%) y Fondo de Garantía Salarial (0,20\,\%), entre
+otras. Aplicando dicho porcentaje sobre el coste de desarrollo calculado, el \textbf{coste
+total de personal a cargo de la empresa asciende a 2.928,53\,€}, tal y como se
+refleja en la Tabla~\ref{tab:coste_personal}.
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{p{9cm} r}
+    \toprule
+    \textbf{Concepto} & \textbf{Importe (€)} \\
+    \midrule
+    Salario bruto (199\,h $\times$ 11,35\,€/h)           & 2.258,65 \\
+    Seguridad Social a cargo del empleador (33\,\%)       &   745,35 \\
+    \midrule
+    \textbf{Coste total de personal}                      & \textbf{3.004,00} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Desglose del coste de personal incluyendo cargas sociales.}
+  \label{tab:coste_personal}
+\end{table}
+
+Adicionalmente, el proyecto ha incurrido en un coste operativo derivado del uso de
+la plataforma \textbf{Google Colaboratory Pro} durante los aproximadamente dos meses
+que abarcó el ciclo completo de entrenamiento y experimentación con los modelos de
+aprendizaje automático. A un precio de 10,99\,€/mes, el coste total de esta herramienta
+asciende a \textbf{21,98\,€}.
+
+Por otro lado, el desarrollo del sistema ha requerido la fabricación de un \textbf{prototipo
+hardware} basado en el sensor espectral AS7265x. Los materiales adquiridos para su
+construcción se recogen en la Tabla~\ref{tabla:coste_prototipo}.
+
+\tablaSmallSinColores
+{Costes de fabricación del prototipo Hardware}
+{p{0.45\linewidth} p{0.28\linewidth} >{\raggedleft\arraybackslash}p{0.17\linewidth}}
+{coste_prototipo}
+{\textbf{Pieza} & \textbf{Cantidad} & \textbf{Precio unitario (€)} \\}
+{
+    Sensor AS7265x \cite{sparkfun_as7265x, ams2018as7265x}          & 1 sensor                              &  59,97 \\
+    Placas fabricadas (pack 5)& 1 pack                                & 125,00 \\
+    Arduino                   & 1 placa                               &  18,73 \\
+    Plástico (carcasa)        & 1\,kg para las distintas pruebas      &  18,00 \\
+    \midrule
+    \textbf{Total prototipo}  &                                       & \textbf{221,70} \\
+}
+
+El coste global estimado del proyecto, integrando los costes de personal con cargas
+sociales, los materiales del prototipo y los costes operativos de las herramientas
+empleadas, queda recogido en la Tabla~\ref{tabla:costes_totales}.
+
+\tablaSmallSinColores
+  {Resumen de costes totales del proyecto HIVES.}
+  {p{9cm} r}
+  {costes_totales}
+  {
+    \textbf{Concepto} & \textbf{Coste estimado (€)} \\
+  }
+  {
+    Coste de personal (salario bruto + Seg.\ Social)    & 3.004,00 \\
+    Google Colaboratory Pro (2 meses)                   &    21,98 \\
+    Prototipo hardware (sensor, placas, Arduino, etc.)  &   221,70 \\
+    \midrule
+    \textbf{Coste total del proyecto}                   & \textbf{3.247,68} \\
+  }
+\newpage
+\subsubsection*{Viabilidad legal}
+
+La viabilidad legal de este proyecto se centra primordialmente en la protección
+de la propiedad intelectual. La titularidad de los derechos derivados de este Trabajo
+de Fin de Grado recae sobre el estudiante autor del mismo, de manera conjunta con
+los tutores académicos, Carlos Cambra y Rubén Ruiz. Al no estar el software
+distribuido públicamente bajo una licencia formal en el momento de la entrega,
+los derechos de uso y distribución se rigen por la normativa interna de la
+Universidad de Burgos aplicable a los trabajos académicos.
+
+En términos de dependencias de software de terceros, el proyecto hace uso de las
+siguientes librerías externas, cuyas licencias son compatibles con el uso académico
+y no imponen restricciones sobre el código desarrollado:
+
+\tablaSmallSinColores
+  {Librerías de terceros empleadas, versiones mínimas y licencias.
+   Se distinguen las dependencias de ejecución (\textit{runtime})
+   de las empleadas exclusivamente en la fase de pruebas.}
+  {p{3.2cm} p{2.4cm} p{6cm}}
+  {licencias}
+  {
+    \textbf{Librería} & \textbf{Versión mínima} & \textbf{Licencia} \\
+  }
+  {
+    \multicolumn{3}{l}{\textit{Dependencias de ejecución (runtime)}} \\
+    \midrule
+    Python      & 3.10    & PSF License (permisiva) \\
+    PyQt6       & 6.4     & GPL v3 / Licencia comercial \\
+    TensorFlow  & 2.10    & Apache License 2.0 \\
+    PySerial    & 3.5     & BSD 3-Clause \\
+    NumPy       & 1.23    & BSD 3-Clause \\
+    matplotlib  & 3.6     & PSF-based (matplotlib License) \\
+    FPDF2       & 2.7     & LGPL v3 \\
+    pyinstaller & 6.20    & GPL 2.0 / Apache License 2 \\
+    SQLite3     & (stdlib)& Dominio público \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Dependencias de pruebas (solo desarrollo)}} \\
+    \midrule
+    pytest      & 7.0     & MIT \\
+    pytest-qt   & 4.2     & MIT \\
+    pytest-mock & 3.10    & MIT \\
+  }
+\newpage
+Todas las librerías empleadas permiten el uso y estudio del software en contextos
+académicos. No obstante, cabe destacar que \textbf{PyQt6}, el \textit{framework}
+empleado para la construcción de la interfaz gráfica, se distribuye bajo una
+\textbf{licencia dual}: la versión de código abierto se rige por la
+\textbf{GPL v3}, la cual exigiría que cualquier distribución pública del software
+que la integre adopte también dicha licencia. Para un uso académico interno y sin
+distribución comercial, como es el caso de este Trabajo de Fin de Grado, esta
+condición no supone una restricción operativa. En caso de que el proyecto evolucionara
+hacia una distribución pública o comercial, se debería evaluar la adquisición de una
+licencia comercial de PyQt6 por parte de Riverbank Computing~\cite{riverbank2024pyqt6}, o bien la migración
+a \textbf{PySide6} (LGPL v3), que ofrece una API equivalente con menores restricciones
+de distribución. Cabe destacar que, aunque su instalación no es un requisito para la ejecución de la interfaz final del usuario, durante la fase de experimentación en la nube con Google Colab Pro también se emplearon bibliotecas como XGBoost y CuML\cite{rapids_cuml}. Si bien inicialmente se utilizaron para evaluar y comparar el rendimiento de distintos algoritmos, XGBoost terminó integrándose como la primera etapa de un modelo predictivo mixto (arquitectura híbrida). En este diseño final, el procesamiento inicial realizado por XGBoost genera las bases que alimentan directamente a una red neuronal densa implementada con TensorFlow, conformando así la solución algorítmica definitiva del sistema.

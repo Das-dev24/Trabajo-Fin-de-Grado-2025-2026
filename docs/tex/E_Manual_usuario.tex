@@ -1,0 +1,294 @@
+\apendice{Documentación de usuario}
+
+\section{Introducción}
+
+El presente apéndice constituye la documentación orientada al usuario final del
+sistema HIVES (\textit{Honey Identification and Verification by Spectroscopy}).
+Su objetivo es proporcionar las instrucciones necesarias para la correcta
+instalación, configuración y operación de la aplicación, sin requerir
+conocimientos de programación por parte del usuario.
+
+El sistema ha sido diseñado para ser operado por dos perfiles de usuario
+diferenciados:
+
+\begin{itemize}
+    \item \textbf{Usuario técnico o semitécnico:} personal de laboratorio,
+    técnicos de calidad apícola o investigadores con conocimientos básicos
+    en el uso de un ordenador. Este perfil es capaz de gestionar la
+    configuración del puerto serie y la calibración del sensor de forma
+    autónoma.
+    \item \textbf{Usuario no técnico:} apicultores u operarios sin
+    conocimientos informáticos avanzados, cuya interacción con el sistema
+    se limita al flujo principal de análisis. Para este perfil se recomienda
+    que la configuración inicial sea realizada por personal técnico.
+\end{itemize}
+
+La interfaz gráfica sigue principios de diseño minimalista, minimizando la
+curva de aprendizaje y permitiendo obtener resultados de clasificación de
+forma intuitiva y eficiente.
+\imagentamano{img/Interfaz/MainView_hives.png}{Vista general de la ventana principal de la aplicación HIVES. Fuente: Elaboración Propia.}{1}
+
+\section{Requisitos de usuario}
+
+Para garantizar el correcto funcionamiento del sistema HIVES, el equipo sobre
+el que se ejecute la aplicación deberá cumplir los siguientes requisitos mínimos
+de hardware y software según el sistema operativo empleado:
+\newpage
+\tablaSmallSinColores
+  {Requisitos mínimos del sistema para la ejecución de HIVES.}
+  {p{3.5cm} p{8cm}}
+  {requisitos_sistema}
+  {
+    \textbf{Componente} & \textbf{Especificación mínima} \\
+  }
+  {
+    Sistema operativo  & Windows 10 (64\,bits) o superior; Ubuntu 20.04 LTS
+                         o superior; macOS 11 (\textit{Big Sur}) o superior \\
+    Procesador         & Intel Core i3 (o equivalente AMD), 2{,}0\,GHz,
+                         o ARM (M1, M2,...) en el caso de macOS \\
+    Memoria RAM        & 4\,GB \\
+    Almacenamiento     & 2\,GB de espacio libre en disco \\
+    Puerto de conexión & Puerto USB libre (para adaptador USB--Serie) \\
+    Conectividad       & No requerida (operación completamente local) \\
+  }
+
+Adicionalmente, es necesario que el espectrómetro se encuentre conectado al
+equipo mediante el adaptador USB--Serie correspondiente y que el sistema
+operativo haya reconocido correctamente el dispositivo antes de iniciar
+la aplicación.
+
+\section{Instalación}
+
+La distribución de HIVES se realiza en forma de paquete autocontenido generado
+mediante la herramienta PyInstaller en formato \emph{one-dir}. Dicho formato
+encapsula el intérprete de Python, todas las dependencias y el modelo de
+Inteligencia Artificial, eximiendo al usuario de cualquier instalación técnica
+previa. El resultado es una carpeta de aplicación (\texttt{HIVES/}) que contiene
+el ejecutable principal junto a un subdirectorio \texttt{\_internal/} con las
+bibliotecas, los binarios de soporte y el modelo entrenado. Se proporciona un
+paquete independiente para cada sistema operativo compatible.
+
+\begin{quote}
+\textbf{Importante:} la carpeta de aplicación debe copiarse y conservarse
+\emph{íntegra}. El ejecutable principal depende del subdirectorio
+\texttt{\_internal/} que lo acompaña; si se extrae el ejecutable de forma aislada,
+la aplicación no podrá iniciarse. En macOS esta restricción no aplica, ya que la
+distribución adopta la forma de un \emph{bundle} \texttt{.app} autocontenido.
+\end{quote}
+
+\subsection*{Windows}
+\begin{enumerate}
+  \item Copiar la carpeta completa \texttt{HIVES\textbackslash} en el directorio de
+        trabajo deseado (por ejemplo,
+        \texttt{C:\textbackslash Usuarios\textbackslash <usuario>\textbackslash HIVES\textbackslash}),
+        conservando en su interior el ejecutable \texttt{HIVES.exe} y el
+        subdirectorio \texttt{\_internal\textbackslash}.
+  \item Conectar el espectrómetro al ordenador mediante el cable USB antes de
+        iniciar la aplicación. El sensor se comunica con el equipo a través de la
+        placa Arduino Uno que lo gobierna. Verificar en el \emph{Administrador de
+        dispositivos} que el dispositivo aparece reconocido y que se le ha asignado
+        un puerto COM activo (por ejemplo, \texttt{COM3}).
+  \item Hacer doble clic sobre \texttt{HIVES.exe} para iniciar la aplicación. No se
+        requiere instalación adicional ni permisos de administrador.
+  \item Asegurarse de que la carpeta donde reside la aplicación cuenta con permisos
+        de escritura, ya que la base de datos local y los reportes exportados se
+        almacenan en esa misma ubicación.
+\end{enumerate}
+
+\subsection*{Linux}
+\begin{enumerate}
+  \item Copiar la carpeta completa \texttt{HIVES/} en el directorio de trabajo
+        deseado, conservando en su interior el binario \texttt{HIVES} y el
+        subdirectorio \texttt{\_internal/}.
+  \item Conectar el espectrómetro al ordenador mediante el cable USB. La placa
+        Arduino que gobierna el sensor se enumera en Linux con un nombre de
+        dispositivo que depende de su circuito de comunicación: las placas con
+        conversor USB--serie (CH340, FTDI o CP210x) aparecen como
+        \texttt{/dev/ttyUSB0}, mientras que las placas con USB nativo lo hacen como
+        \texttt{/dev/ttyACM0}. Para conocer el puerto asignado, listar ambos
+        conjuntos de dispositivos:
+\begin{verbatim}
+ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+\end{verbatim}
+        Si hubiera varios dispositivos conectados y existiera duda sobre cuál
+        corresponde al espectrómetro, puede desconectarse y volverse a conectar la
+        placa y consultar los últimos mensajes del núcleo, que indican el nombre
+        exacto recién asignado:
+\begin{verbatim}
+dmesg | grep -i tty
+\end{verbatim}
+  \item Conceder al usuario permiso de acceso al puerto serie. Los dispositivos
+        \texttt{ttyUSB} y \texttt{ttyACM} pertenecen al grupo \texttt{dialout}, por
+        lo que basta con añadir el usuario a dicho grupo (solución persistente y
+        recomendada) y conceder permiso de ejecución al binario:
+\begin{verbatim}
+chmod +x HIVES/HIVES
+sudo usermod -aG dialout $USER
+\end{verbatim}
+        Es necesario cerrar la sesión y volver a iniciarla para que el cambio de
+        grupo surta efecto. Como alternativa puntual para una única sesión, puede
+        otorgarse acceso directo al dispositivo concreto (sustituyendo el nombre por
+        el identificado en el paso anterior):
+\begin{verbatim}
+sudo chmod a+rw /dev/ttyUSB0
+\end{verbatim}
+  \item Ejecutar la aplicación desde el terminal, situándose en la carpeta de la
+        aplicación, o haciendo doble clic sobre el binario si el entorno de
+        escritorio lo permite:
+\begin{verbatim}
+cd HIVES && ./HIVES
+\end{verbatim}
+\end{enumerate}
+
+\subsection*{macOS (Apple Silicon, M1 o superior)}
+\begin{enumerate}
+  \item Copiar el paquete \texttt{HIVES.app} en la carpeta \emph{Aplicaciones} o en
+        el directorio de trabajo deseado.
+
+        \textbf{Nota:} el ejecutable distribuido ha sido compilado para la
+        arquitectura ARM64 (Apple Silicon). No ha sido probado en otras arquitecturas. Para 
+        equipos Mac con procesador Intel, se requerirá el uso de Rosetta~2.
+  \item Conectar el espectrómetro al ordenador mediante el cable USB. El sistema
+        operativo reconocerá automáticamente la placa Arduino Uno y le asignará un
+        puerto con un nombre similar a \texttt{/dev/cu.usbmodem1401}, lo que puede
+        verificarse desde la terminal con:
+\begin{verbatim}
+ls /dev/cu.*
+\end{verbatim}
+  \item En caso de que macOS bloquee la ejecución por provenir de un desarrollador
+        no identificado, acceder a \emph{Ajustes del Sistema} $\rightarrow$
+        \emph{Privacidad y seguridad} y autorizar manualmente la ejecución de la
+        aplicación.
+  \item Abrir la aplicación haciendo doble clic sobre \texttt{HIVES.app}.
+\end{enumerate}
+
+\section{Manual del usuario}
+
+Esta sección describe el flujo de trabajo completo de la aplicación HIVES,
+detallando las pantallas disponibles y las acciones que el usuario puede
+realizar en cada una de ellas.
+
+\subsection*{Estructura de la interfaz}
+
+La aplicación está organizada en tres elementos principales:
+
+\begin{itemize}
+    \item \textbf{Menú lateral izquierdo:} panel de control desde el que se
+    gestiona la conexión con el Arduino Uno, se selecciona el puerto serie
+    activo y se accede a los parámetros de configuración del análisis.
+    \item \textbf{Ventana principal:} área central de operación donde se
+    inicia el análisis, se visualizan los resultados y se exportan los reportes.
+    \item \textbf{Ventana de históricos:} repositorio de consulta de todos los
+    análisis previos registrados, con capacidad de filtrado por fecha,
+    categoría y nivel de confianza. Además se pueden extraer los datos a un fichero \textbf{CSV}.
+    \item \textbf{Ventana de muestras:} repositorio de consulta de todas las muestras tomadas hasta la fecha, con capacidad de filtrado por fecha, y de extracción de las mismas en \textbf{CSV}.
+\end{itemize}
+
+\subsection*{Paso 1 — Configuración inicial (perfil técnico)}
+
+\textit{Este paso está destinado al usuario técnico. El usuario no técnico
+puede omitirlo si la configuración ya ha sido realizada previamente.}
+
+\begin{enumerate}
+    \item En el \textbf{menú lateral izquierdo} de la ventana principal,
+    localizar el selector de puerto serie.
+    \item Seleccionar el puerto al que está conectado el Arduino Uno. La lista
+    se actualiza automáticamente con los puertos disponibles detectados por
+    el sistema operativo.
+    \item Ajustar los parámetros de análisis adicionales si fuera necesario.
+    La aplicación conservará esta configuración en sesiones sucesivas.
+\end{enumerate}
+
+\imagentamano{img/Interfaz/BerMenu_hives.png}{Menú lateral izquierdo de la ventana principal: selector de puerto serie y parámetros de análisis. Fuente: Elaboración Propia.}{0.2}
+
+\subsection*{Paso 2 — Calibración del sensor (perfil técnico)}
+
+Se recomienda realizar una calibración del sensor al inicio de cada sesión
+de trabajo, especialmente si el dispositivo ha sido desconectado o si las
+condiciones ambientales han variado respecto a la sesión anterior.
+
+\begin{enumerate}
+    \item Desde la ventana principal, accionar el control de
+    \textbf{Calibración}.
+    \item Seguir las indicaciones que aparezcan en pantalla durante el proceso. Habrá que hacer 2 calibraciones: una de blancos y otra de negros. Para ello se usará un papel de reflectancia en el primer caso, y una cubeta negra en el segundo caso.
+    \item Una vez completada la calibración, el sistema estará listo para
+    realizar análisis con garantías de precisión.
+\end{enumerate}
+
+\subsection*{Paso 3 — Análisis de una muestra}
+
+Este es el flujo principal de uso de la aplicación, accesible para cualquier
+perfil de usuario.
+
+\begin{enumerate}
+    \item Colocar la muestra de miel en el soporte del espectrómetro conforme
+    al procedimiento físico establecido.
+    \item En la \textbf{ventana principal}, accionar el control
+    \textbf{«Iniciar Análisis»}.
+    \item El sistema establecerá la conexión con el espectrómetro, capturará
+    los datos espectrales y ejecutará el modelo de clasificación de forma
+    automática. Durante este proceso se mostrará un indicador de progreso en
+    pantalla.
+    \item Transcurrido el tiempo de análisis (máximo 2~minutos), los resultados
+    se visualizarán en la interfaz: \textbf{categoría de miel clasificada},
+    \textbf{índice de confianza del modelo} y \textbf{métricas espectrales}
+    de la muestra.
+    \item Los datos quedan registrados automáticamente en la base de datos
+    local sin intervención del usuario.
+\end{enumerate}
+\imagentamano{img/Interfaz/DataCapture.png}{Ventana principal mostrando los resultados tras completar un análisis de muestra. Fuente: Elaboración Propia.}{}
+
+
+\subsection*{Paso 4 — Exportación del reporte PDF}
+
+\begin{enumerate}
+    \item Accionar el control \textbf{«Generar Reporte PDF»} en la ventana
+    principal.
+    \item El sistema abrirá un cuadro de diálogo del sistema operativo para
+    seleccionar la ruta y el nombre del archivo de destino.
+    \item Confirmar la ruta. El documento PDF se generará y guardará en el
+    directorio indicado, quedando disponible para su consulta, impresión o
+    distribución externa.
+\end{enumerate}
+
+\subsection*{Paso 5 — Consulta del histórico (perfil técnico)}
+
+\begin{enumerate}
+    \item Accionar el control \textbf{«Ver Histórico»} en la ventana principal.
+    \item La \textbf{ventana de históricos} mostrará una tabla con todos los
+    análisis registrados: fecha, tipo de miel clasificado y nivel de confianza.
+    \item Utilizar los controles de filtrado disponibles (rango de fechas,
+    categoría de miel, umbral de confianza) para acotar los resultados.
+    \item Seleccionar un registro de la tabla para visualizar su detalle
+    completo o iniciar la exportación PDF descrita en el paso anterior.
+\end{enumerate}
+
+\imagentamano{img/Interfaz/HistoricView.png}{Ventana de históricos con los filtros de búsqueda disponibles. Fuente: Elaboración Propia.}{1}
+\newpage
+\subsection*{Mensajes de error frecuentes}
+\tablaSmallSinColores
+  {Mensajes de error de la aplicación y acciones correctoras.}
+  {p{4.5cm} p{8cm}}
+  {mensajes_error}
+  {
+    \textbf{Mensaje} & \textbf{Acción recomendada} \\
+  }
+  {
+    «No se detecta el espectrómetro» &
+      Verificar que el cable USB del Arduino Uno está correctamente
+      conectado. Comprobar que el puerto serie seleccionado en la
+      ventana de configuración coincide con el asignado por el sistema
+      operativo (\texttt{COMx} en Windows, \texttt{/dev/ttyACM0} en
+      Linux, \texttt{/dev/cu.usbmodem*} en macOS). En Linux, verificar
+      además que el usuario pertenece al grupo \texttt{dialout}. \\
+    «Error al cargar el modelo de IA» &
+     Comprobar que el archivo del modelo (\texttt{mejor\_modelo.keras}) y el fichero
+    de clases (\texttt{clases.json}) se encuentran en la carpeta \texttt{models/}
+    junto al ejecutable. \\
+    «Sin permisos de escritura» &
+      Mover el ejecutable a un directorio con permisos de escritura
+      para el usuario actual. En macOS y Linux, verificar los permisos
+      del directorio con \texttt{ls -la}. \\
+    «No se han encontrado coincidencias» &
+      Ampliar los criterios de filtrado en la ventana de históricos. \\
+  }

@@ -1,0 +1,76 @@
+\capitulo{4}{Técnicas y herramientas}
+
+El desarrollo de HIVES ha requerido la evaluación y selección de un ecosistema heterogéneo de tecnologías. Este capítulo documenta y justifica las decisiones adoptadas en cada ámbito funcional, priorizando la mantenibilidad, el rendimiento, la compatibilidad multiplataforma y la viabilidad de despliegue.
+
+\section{Metodología de desarrollo}
+
+La planificación del proyecto se ha articulado en torno a \textbf{Scrum}, marco de trabajo ágil iterativo e incremental consolidado como estándar \textit{de facto} en la industria. Dado el carácter unipersonal del TFG, se ha aplicado una adaptación metodológica en la que el alumno asume simultáneamente los roles de \textit{Product Owner}, \textit{Scrum Master} y equipo de desarrollo, mientras que los tutores académicos ejercen como \textit{stakeholders} proporcionando validación y retroalimentación. El ciclo de desarrollo se ha discretizado en \textit{sprints} de siete días naturales, ventana que equilibra la necesidad de presentar incrementos evaluables con la agilidad necesaria para pivotar ante imprevistos técnicos.
+
+Como infraestructura de soporte metodológico se ha empleado \textbf{Jira}. Todo el alcance funcional se ha modelado en un \textit{Product Backlog} estructurado en Épicas y Tareas, con estimación mediante Puntos de Historia (\textit{Story Points}). Los gráficos de trabajo pendiente (\textit{burn-down charts}) generados automáticamente han permitido auditar la velocidad de desarrollo y la adherencia a la planificación en cada iteración.
+
+\section{Tecnologías principales}
+
+\subsection{Lenguaje de programación: Python}
+
+La totalidad del ecosistema software de HIVES se ha programado en \textbf{Python 3.10}. La decisión responde al paradigma de \textbf{unificación tecnológica}: en sistemas que integran flujos de aprendizaje automático con una capa de presentación visual, disociar el lenguaje del modelo del lenguaje de la aplicación introduce sobrecoste de serialización, latencias de comunicación y complejidades en el despliegue. Al ser Python el lenguaje hegemónico en la comunidad científica de Inteligencia Artificial, su extensión a la capa de presentación y a la lógica de negocio elimina estas barreras. Adicionalmente, su biblioteca estándar cubre las necesidades del proyecto: concurrencia mediante hilos, comunicación serie asíncrona y manipulación matricial de datos espectrales.
+
+\subsection{Motor de inferencia: destilación de conocimiento con TensorFlow y XGBoost}
+
+El diseño del motor de clasificación ha atravesado un proceso evolutivo que
+culmina en una arquitectura híbrida, estrategia que cuenta con respaldo en la
+literatura reciente: \cite{kashani:2025} demuestra que la combinación de
+enfoques complementarios dentro de un marco híbrido mejora la capacidad
+predictiva frente al empleo de un único modelo aislado. Durante las fases de
+evaluación algorítmica se constató empíricamente que los modelos basados en
+ensamblados de árboles de decisión ---en particular \textbf{XGBoost}~\cite{chen2016xgboost}---
+exhibían una capacidad de generalización superior a la de las redes neuronales
+puras cuando el espacio muestral es reducido, circunstancia inherente al dominio
+del proyecto. Sin embargo, el despliegue directo de un modelo XGBoost introducía
+fricciones arquitectónicas en el módulo de inferencia, concebido para operar con
+grafos computacionales de \textbf{TensorFlow/Keras}~\cite{tensorflow2024docs}.
+
+Para ello se implementó una estrategia de \textbf{destilación de conocimiento} (\textit{knowledge distillation})~\cite{hinton2015distilling}, que discurre en dos etapas:
+
+\begin{enumerate}
+    \item \textbf{Transferencia de conocimiento.} Un clasificador maestro XGBoost, calibrado mediante búsqueda exhaustiva de hiperparámetros (\textit{Grid Search}), procesa el conjunto de entrenamiento para generar vectores de probabilidad suavizada (\textit{soft labels}). Estas distribuciones retienen información topológica sobre la similitud espectral entre clases, aportando un gradiente de aprendizaje más rico que las etiquetas categóricas binarias.
+    \item \textbf{Imitación tensorial.} Una red neuronal densa (estudiante) programada en Keras se entrena para mimetizar las predicciones del modelo maestro. La topología emplea capas de compresión dimensional ($128 \rightarrow 64 \rightarrow 32$) con activaciones no lineales y una capa de salida \textit{Softmax}, optimizando la entropía cruzada categórica frente a las \textit{soft labels}.
+\end{enumerate}
+
+El resultado es un modelo neuronal ligero y determinista que incorpora la heurística extraída del ensamblado, distribuible en un único fichero \texttt{.keras} sin dependencias del entorno de entrenamiento.
+
+\subsection{Interfaz gráfica y concurrencia: PyQt6}
+
+La capa de presentación se ha materializado con \textbf{PyQt6}, los \textit{bindings} oficiales del \textit{framework} C++ Qt~6 para Python. Frente a alternativas como Tkinter o wxPython, PyQt6 garantiza aspecto nativo en los tres sistemas operativos objetivo (Windows, Linux y macOS) y proporciona dos pilares críticos para la arquitectura:
+
+\begin{itemize}
+    \item \textbf{Patrón Modelo-Vista-Controlador}, facilitado por el mecanismo de \textbf{señales y \textit{slots}} (\textit{signals \& slots}), que desacopla completamente el estado interno de la aplicación de su representación visual.
+    \item \textbf{Concurrencia sin bloqueo}, mediante la clase \texttt{QThread}, que delega los procesos de entrada/salida bloqueantes —lectura del puerto serie y cálculo de la predicción— a hilos en segundo plano, preservando la fluidez del bucle de eventos principal y eliminando la congelación de la interfaz.
+\end{itemize}
+
+\subsection{Persistencia local: SQLite}
+
+El histórico de análisis se gestiona con el motor relacional \textbf{SQLite}. Su adopción obedece a tres directrices de diseño: inmediatez, portabilidad y aislamiento. Al carecer de arquitectura cliente-servidor, SQLite embebe el motor transaccional en la propia aplicación, materializando la base de datos en un único fichero local sin dependencias de red ni gestión de credenciales. Para minimizar la sobrecarga computacional en las rutinas de inserción y recuperación, se ha descartado el uso de mapeadores objeto-relacional (ORM), accediendo a los datos mediante sentencias SQL directas.
+
+\section{Comunicación hardware-software}
+
+La integración del sensor espectrométrico con la aplicación se segmenta en dos niveles. En la capa de adquisición física, un microcontrolador Arduino Uno actúa como pasarela de conversión de protocolos, interrogando al sensor AS7265x a través del bus \textbf{I\textsuperscript{2}C} y empaquetando los 18 canales espectrales para su transmisión. En el lado del equipo informático, la biblioteca \textbf{PySerial} instancia un puente de comunicación asíncrona con el puerto serie virtual enumerado sobre USB, gestionando los búferes de entrada para evitar pérdida de tramas durante la transferencia de datos.
+
+\section{Herramientas de soporte}
+
+El resto de herramientas que completan el ecosistema del proyecto se reseñan a continuación:
+
+\begin{itemize}
+    \item \textbf{Google Colab (Jupyter Notebooks).} Las fases de exploración analítica, \textit{data wrangling} y calibración de modelos se han desarrollado en Jupyter Notebooks sobre Google Colab, cuya disponibilidad de GPU ha acelerado exponencialmente los ciclos de convergencia en comparación con el cómputo local en CPU.
+
+    \item \textbf{FPDF2.} La generación automatizada de informes periciales en PDF se delega en esta biblioteca, que permite la composición directa de primitivas gráficas, tablas dinámicas y texto estructurado con una huella de memoria mínima, evitando dependencias de renderizadores HTML/CSS.
+
+    \item \textbf{Git y GitHub.} El control de versiones se ha gestionado con Git, con el repositorio alojado en GitHub. Esta combinación garantiza la trazabilidad de cada incremento del proyecto y facilita la colaboración con los tutores.
+
+    \item \textbf{SonarQube.} El análisis estático continuado del código fuente mediante SonarQube ha permitido auditar la deuda técnica, las vulnerabilidades de seguridad y los \textit{code smells}, asegurando el cumplimiento de los estándares \textit{Clean Code}.
+
+    \item \textbf{PlantUML.} El modelado arquitectónico en UML se ha realizado como código declarativo, garantizando la compatibilidad de los diagramas con el sistema de control de versiones e impidiendo la degradación visual de la documentación.
+
+    \item \textbf{PyInstaller.} El empaquetado final de la aplicación —intérprete Python, modelo tensorial, base de datos y dependencias— en un único ejecutable \textit{standalone} se realiza con PyInstaller, eliminando cualquier proceso de instalación de dependencias para el usuario final.
+
+    \item \textbf{LaTeX y Overleaf.} La redacción de la presente memoria y sus anexos se ha llevado a cabo en \LaTeX{} operado a través de Overleaf, plataforma que facilita las rondas iterativas de revisión académica.
+\end{itemize}

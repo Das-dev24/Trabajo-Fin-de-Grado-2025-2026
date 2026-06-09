@@ -1,0 +1,39 @@
+\capitulo{6}{Trabajos relacionados}
+
+El desarrollo de sistemas orientados a la clasificación y control de calidad de productos agroalimentarios mediante técnicas ópticas no destructivas constituye un área de investigación de gran dinamismo en la intersección de la ingeniería ciberfísica, la quimiometría y la inteligencia artificial. En este capítulo se expone una revisión del estado del arte, clasificando los trabajos previos en función de sus aportaciones al análisis espectroscópico de la miel, la detección algorítmica de adulteraciones y el empleo de infraestructuras modulares de adquisición de datos.
+
+\section{Caracterización física y colorimetría espectral tradicional}
+
+El uso de propiedades ópticas para inferir la calidad y el origen de la miel cuenta con precedentes consolidados en la literatura científica. Inicialmente, las investigaciones se centraban en la medición de parámetros físicos discretos correlacionados con la composición bromatológica del fluido. 
+
+Un trabajo de referencia en este ámbito es el desarrollado por Simal Lozano et al.~\cite{simal1991color}, quienes profundizaron en la determinación analítica del color y la turbidez como indicadores directos de las propiedades organolépticas y el origen de las mieles. Estas aproximaciones clásicas demostraron que el espectro visible absorbe de forma heterogénea dependiendo de los pigmentos (carotenoides, flavonoides) y los elementos en suspensión (trazas de polen o microburbujas), sentando las bases ópticas que justifican el uso de fotodiodos para registrar firmas espectrales. 
+
+No obstante, estos estudios tradicionales dependían de instrumentación de laboratorio compleja, como espectrofotómetros de mesa de alta resolución, y de técnicas de procesado puramente estadísticas (regresiones lineales), careciendo de la automatización y capacidad de generalización que proveen los flujos de software actuales.
+
+\section{Espectroscopía infrarroja y detección de adulteraciones}
+
+Con el avance de los sensores optoelectrónicos, el foco de la comunidad científica se orientó hacia el uso de rangos electromagnéticos más amplios, especialmente el infrarrojo cercano (NIR) y medio, debido a su sensibilidad ante las vibraciones moleculares de los enlaces químicos presentes en los azúcares (glucosa, fructosa) y el agua.
+
+En esta línea, la investigación de Guillén Cueto~\cite{guillen2017nirs} detalla el éxito de la aplicación de la técnica NIRS para la autentificación de mieles adulteradas. Su trabajo demuestra que la radiación en el infrarrojo cercano permite capturar firmas moleculares complejas que reflejan alteraciones sutiles en la matriz de la miel, causadas por la adición fraudulenta de siropes exógenos (como jarabes de maíz o caña de azúcar). El procesamiento de estos espectros NIR de alta dimensionalidad mediante modelos quimiométricos avanzados abrió la puerta al uso de algoritmos de clasificación supervisada para la inspección alimentaria automatizada.
+
+Asimismo, estudios consolidados en revistas especializadas de química alimentaria, como los publicados en \textit{Food Chemistry}~\cite{sciencedirect_espectro_miel}, corroboran que el análisis multifrecuencial que abarca tanto el espectro ultravioleta como las longitudes de onda del infrarrojo cercano proporciona vectores de características con un poder discriminativo muy superior al de las técnicas ópticas restringidas al ojo humano. Estas investigaciones justifican la arquitectura de almacenamiento y preparación tensorial implementada en HIVES, diseñada para procesar arrays de 18 canales que solapan precisamente estas regiones críticas del espectro.
+
+\section{Evolución hacia repositorios abiertos y modelos de Machine Learning}
+
+En el ámbito estrictamente informático, el auge del \textit{Data Science} ha propiciado la proliferación de conjuntos de datos de libre acceso enfocados en la seguridad alimentaria. Un ejemplo de este paradigma es el \textit{Adulterated Honey Dataset} alojado en la plataforma de ciencia de datos Kaggle~\cite{generic_honey_dataset_kaggle}, el cual recopila perfiles analíticos y físico-químicos masivos de muestras de miel destinados al entrenamiento de redes neuronales y clasificadores supervisados.
+
+La disponibilidad de estos entornos de pruebas digitales ha permitido a la comunidad de ingenieros de software evaluar la convergencia de algoritmos en entornos de computación distribuidos o en la nube, empleando herramientas como \ruta{Google Colab}. Sin embargo, la gran mayoría de estos trabajos teóricos adolecen de una desconexión con el entorno físico: se nutren exclusivamente de datos tabulares preexistentes en repositorios, sin proponer una arquitectura de integración extremo a extremo con hardware de captura en tiempo real.
+
+\section{Posicionamiento y aportación del sistema HIVES}
+
+La revisión del estado del arte evidencia una brecha tecnológica clara entre dos mundos: por un lado, las soluciones laboratoriales de alta precisión basadas en espectroscopía pesada~\cite{guillen2017nirs, sciencedirect_espectro_miel}, inaccesibles para el pequeño productor apícola debido a sus elevados costes operativos; y por otro lado, los desarrollos de software algorítmico basados en repositorios estáticos~\cite{generic_honey_dataset_kaggle}, desvinculados de la toma de medidas empíricas.
+
+El sistema HIVES aporta valor de ingeniería precisamente como un puente ciberfísico modular. Al integrar un microsensor espectrométrico de bajo coste con una aplicación de escritorio robusta desarrollada bajo principios de modularidad (\ruta{MVC}) y concurrencia (\ruta{PyQt6}), este proyecto demuestra la viabilidad de trasladar los principios de la quimiometría espectral computacional desde los laboratorios tradicionales directamente hacia un dispositivo portátil y económico. 
+
+Asimismo, la inclusión de un flujo algorítmico de evaluación dual que dota a la aplicación de un motor basado en Bosques Aleatorios (\ruta{scikit-learn}) robusto ante la escasez de muestras físicas, manteniendo simultáneamente los enlaces de carga preparados para redes neuronales densas (\ruta{TensorFlow}), representa una solución de compromiso metodológico realista alineada con el ciclo de vida del software en escenarios de explotación industrial reales.
+
+\section{Técnica Híbrida de modelos de ML (XGBoost + TensorFlow)}
+
+El enfoque metodológico adoptado en HIVES no es exclusivo del ámbito de la espectrometría. Kashani et al. propusieron un marco híbrido que combina redes neuronales profundas (\textit{Deep Neural Networks}, DNN) y XGBoost para la detección temprana de diabetes de tipo~2, obteniendo una precisión del 94\% con el modelo híbrido, frente al 91\% del DNN aislado y el 89\% del XGBoost independiente. Aunque el dominio de aplicación difiere radicalmente del presente proyecto, el estudio valida la estrategia de combinar modelos de aprendizaje profundo con métodos de \textit{gradient boosting} cuando se dispone de datos tabulares de naturaleza espectral o clínica. Resulta especialmente relevante que el pipeline completo fue implementado en Python~3.10 con TensorFlow~2.12 y XGBoost~2.0, coincidiendo con el entorno tecnológico empleado en HIVES~\cite{kashani:2025}. \\
+
+El trabajo ilustra asimismo el valor de incorporar técnicas de inteligencia artificial explicable (XAI) mediante SHAP para justificar las predicciones del modelo, una línea de mejora que se identifica como trabajo futuro en el presente proyecto.
