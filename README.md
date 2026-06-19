@@ -224,8 +224,6 @@ HIVES/
 ├── build_linux.sh                  # Script de compilación para Linux
 ├── pyproject.toml                  # Configuración de pytest
 ├── requirements.txt                # Dependencias del proyecto
-├── AGENTS.md                       # Guía para asistentes de IA (opencode)
-├── CLAUDE.md                       # Guía para Claude Code
 └── README.md                       # Esta documentación
 ```
 
