@@ -9,3 +9,4 @@ Prueba/
 .build_venv/
 build/
 dist/
+*,cover
