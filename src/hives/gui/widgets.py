@@ -3,6 +3,9 @@ from PyQt6.QtCore import Qt
 
 from hives.constants import WAVELENGTHS
 
+# -------------------------------------------------------------------- #
+#            Coamprobamos que matplotlib esta disponible               #
+# -------------------------------------------------------------------- #
 try:
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.figure import Figure
@@ -12,6 +15,9 @@ except ImportError:
 
 
 if _MATPLOTLIB_AVAILABLE:
+    # -------------------------------------------------------------------- #
+    #       Creamos el gráfico que mostrará los datos en tiempo real       #
+    # -------------------------------------------------------------------- #
     class SpectralCanvas(FigureCanvas):
         def __init__(self):
             self.fig = Figure(figsize=(6, 3.5), facecolor="#f8f8f8")
@@ -19,6 +25,9 @@ if _MATPLOTLIB_AVAILABLE:
             self.ax = self.fig.add_subplot(111)
             self._setup_axes()
 
+        # -------------------------------------------------------------------- #
+        #               Definimos los ejes del gráfico                         #
+        # -------------------------------------------------------------------- #
         def _setup_axes(self):
             ax = self.ax
             ax.set_facecolor("#f8f8f8")
@@ -33,6 +42,9 @@ if _MATPLOTLIB_AVAILABLE:
             ax.set_ylim(0, 1)
             self.fig.tight_layout(pad=1.5)
 
+        # -------------------------------------------------------------------- #
+        #              Actualizamos los datos del gráfico                      #
+        # -------------------------------------------------------------------- #
         def update_data(self, values: list):
             self.ax.clear()
             self._setup_axes()
@@ -71,6 +83,10 @@ if _MATPLOTLIB_AVAILABLE:
             self.draw()
 
 else:
+
+    # -------------------------------------------------------------------- #
+    #             Mensaje en caso de no tenere matplotlib                  #
+    # -------------------------------------------------------------------- #
     class SpectralCanvas(QWidget):
         def __init__(self):
             super().__init__()

@@ -2,8 +2,12 @@ import pytest
 
 mpl = pytest.importorskip("matplotlib", reason="matplotlib not installed")
 
-from hives.gui.widgets import SpectralCanvas  # noqa: E402  (import after importorskip)
+from hives.gui.widgets import SpectralCanvas 
 
+
+# -------------------------------------------------------------------- #
+#                              Persistencia                            #
+# -------------------------------------------------------------------- #
 
 def test_canvas_instantiates(qtbot):
     canvas = SpectralCanvas()
@@ -21,26 +25,38 @@ def test_update_data_18_values(qtbot, mocker):
 def test_update_data_wrong_length_does_not_raise(qtbot):
     canvas = SpectralCanvas()
     qtbot.addWidget(canvas)
-    canvas.update_data([0.5] * 10)  # must not raise
+    canvas.update_data([0.5] * 10)  # No debe saltar ninguan excepción
+
+
+def test_update_data_value_error_handled(qtbot):
+    canvas = SpectralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.update_data(["bad"] * 18)  # No debe saltar ninguan excepción
+
+
+def test_update_data_peak_above_1_5(qtbot):
+    canvas = SpectralCanvas()
+    qtbot.addWidget(canvas)
+    canvas.update_data([10.0] * 18)  # peak > 1.5 → ymax = peak * 1.15
 
 
 def test_update_data_inf_sanitized(qtbot):
     canvas = SpectralCanvas()
     qtbot.addWidget(canvas)
-    canvas.update_data([float("inf")] * 18)  # must not raise
+    canvas.update_data([float("inf")] * 18)  # No debe saltar ninguan excepción
 
 
 def test_update_data_nan_sanitized(qtbot):
     canvas = SpectralCanvas()
     qtbot.addWidget(canvas)
-    canvas.update_data([float("nan")] * 18)  # must not raise
+    canvas.update_data([float("nan")] * 18)  # No debe saltar ninguan excepción
 
 
 def test_clear_plot_resets_axes(qtbot):
     canvas = SpectralCanvas()
     qtbot.addWidget(canvas)
     canvas.update_data([0.8] * 18)
-    canvas.clear_plot()  # must not raise
+    canvas.clear_plot()  # No debe saltar ninguan excepción
 
 
 def test_fallback_widget_when_matplotlib_absent(qtbot, mocker):
@@ -51,5 +67,5 @@ def test_fallback_widget_when_matplotlib_absent(qtbot, mocker):
 
     fallback = widgets_mod.SpectralCanvas()
     qtbot.addWidget(fallback)
-    fallback.update_data([0.5] * 18)  # no-op, must not raise
-    fallback.clear_plot()             # no-op, must not raise
+    fallback.update_data([0.5] * 18)  
+    fallback.clear_plot()             # No debe saltar ninguan excepción

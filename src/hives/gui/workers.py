@@ -2,7 +2,9 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from hives.core.sensor import SerialReader
 
-
+# -------------------------------------------------------------------- #
+#         Workers para la lecutra del puerto serie                     #
+# -------------------------------------------------------------------- #
 class SerialWorker(QThread):
     data_received  = pyqtSignal(list)
     error_occurred = pyqtSignal(str)

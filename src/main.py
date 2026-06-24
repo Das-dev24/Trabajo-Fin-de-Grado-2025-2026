@@ -2,13 +2,22 @@ import logging
 import sys
 import os
 
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
+from hives.core.paths import ICON_PATH
+from hives.gui.main_window import SpectroControlUI
+from hives.core.paths import DB_PATH
+
 _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 if not getattr(sys, 'frozen', False):
     sys.path.insert(0, _SRC_DIR)
 
-
+"""Función para configurar los logs de la aplicación. De forma que podamos ver que es lo que falla en la aplicación"""
+# -------------------------------------------------------------------- #
+#     Creación de logs de la aplicación para poder saber lo que        #
+#     en la app                                                        #
+# -------------------------------------------------------------------- #
 def _setup_logging():
-    from hives.core.paths import DB_PATH
     log_dir = os.path.dirname(DB_PATH)
     os.makedirs(log_dir, exist_ok=True)
     logging.basicConfig(
@@ -22,12 +31,6 @@ def _setup_logging():
 
 
 _setup_logging()
-
-
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QIcon
-from hives.core.paths import ICON_PATH
-from hives.gui.main_window import SpectroControlUI
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

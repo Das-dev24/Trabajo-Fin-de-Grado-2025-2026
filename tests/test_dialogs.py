@@ -4,8 +4,9 @@ from PyQt6.QtWidgets import QDialog
 from hives.constants import CAL_BLANCO, CAL_OSCURO
 from hives.gui.dialogs import CalibracionDialog, NombreAnalisisDialog
 
-
-# ── NombreAnalisisDialog ──────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                   Dialogo nombre análisis                            #
+# -------------------------------------------------------------------- #
 
 def test_nombre_dialog_accepts_valid_name(qtbot):
     dlg = NombreAnalisisDialog()
@@ -46,8 +47,9 @@ def test_nombre_dialog_cancel(qtbot):
     dlg.reject()
     assert dlg.result() == QDialog.DialogCode.Rejected
 
-
-# ── CalibracionDialog ─────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                     Dialogo calibraciones                            #
+# -------------------------------------------------------------------- #
 
 def test_cal_dialog_tipo_blanco(qtbot):
     dlg = CalibracionDialog()

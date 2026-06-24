@@ -1,8 +1,9 @@
 import pytest
 from serial import SerialException
 
-
-# ── connect() ────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                        Conexión                                      #
+# -------------------------------------------------------------------- #
 
 def test_connect_success(mock_serial, mocker):
     from hives.core.sensor import SerialReader
@@ -19,7 +20,9 @@ def test_connect_failure(mocker):
     assert reader.serial_connection is None
 
 
-# ── disconnect() ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                        Desconexión                                   #
+# -------------------------------------------------------------------- #
 
 def test_disconnect_closes_open_port(mock_reader, mock_serial):
     mock_serial.is_open = True
@@ -38,10 +41,12 @@ def test_disconnect_noop_when_no_connection(mocker):
     from hives.core.sensor import SerialReader
     reader = SerialReader("COM3", 115200)
     reader.serial_connection = None
-    reader.disconnect()  # must not raise
+    reader.disconnect()  # No debe saltar excecpción
 
 
-# ── send_command() ────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                              Enviar comando                          #
+# -------------------------------------------------------------------- #
 
 def test_send_command_returns_response(mock_reader, mock_serial, mocker):
     mocker.patch("hives.core.sensor.time.sleep")
@@ -70,7 +75,9 @@ def test_send_command_serial_exception(mock_reader, mock_serial, mocker):
     assert mock_reader.send_command("s") is None
 
 
-# ── start_scanning() ─────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                              Comenzar escaneo                        #
+# -------------------------------------------------------------------- #
 
 def test_start_scanning_success(mock_reader, mock_serial, mocker):
     mocker.patch("hives.core.sensor.time.sleep")
@@ -86,7 +93,9 @@ def test_start_scanning_failure(mock_reader, mock_serial, mocker):
     assert mock_reader.is_scanning is False
 
 
-# ── stop_scanning() ───────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                        Parar escaneo                                 #
+# -------------------------------------------------------------------- #
 
 def test_stop_scanning_success(mock_reader, mock_serial, mocker):
     mocker.patch("hives.core.sensor.time.sleep")
@@ -101,8 +110,9 @@ def test_stop_scanning_failure(mock_reader, mock_serial, mocker):
     mock_serial.readline.return_value = b"???\n"
     assert mock_reader.stop_scanning() is False
 
-
-# ── change_leds() ─────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                  Cambiar modo -> cambiar leds                        #
+# -------------------------------------------------------------------- #
 
 def test_change_leds_toggles_on(mock_reader, mock_serial, mocker):
     mocker.patch("hives.core.sensor.time.sleep")
@@ -127,8 +137,9 @@ def test_change_leds_failure(mock_reader, mock_serial, mocker):
     assert mock_reader.change_leds() is False
     assert mock_reader.leds_enabled == initial_state
 
-
-# ── read_data() ───────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                              Leer datos                            #
+# -------------------------------------------------------------------- #
 
 def test_read_data_returns_18_floats(mock_reader, mock_serial):
     line = ",".join([f"{i+1}.0" for i in range(18)]) + "\n"
@@ -156,3 +167,24 @@ def test_read_data_no_connection(mocker):
     reader = SerialReader("COM3", 115200)
     reader.serial_connection = None
     assert reader.read_data() is None
+
+
+def test_read_data_serial_exception_handled(mock_reader, mock_serial):
+    from serial import SerialException
+    mock_serial.readline.side_effect = SerialException("read error")
+    assert mock_reader.read_data() is None
+
+
+def test_read_data_value_error_handled(mock_reader, mock_serial):
+    mock_serial.readline.return_value = b"1.0,2.0,not_a_number\n"
+    result = mock_reader.read_data()
+    assert result is None
+
+# -------------------------------------------------------------------- #
+#              Enviar comando y obtener respuesta vacía                #
+# -------------------------------------------------------------------- #
+
+def test_send_command_empty_response(mock_reader, mock_serial, mocker):
+    mocker.patch("hives.core.sensor.time.sleep")
+    mock_serial.readline.return_value = b"\n"
+    assert mock_reader.send_command("s") is None

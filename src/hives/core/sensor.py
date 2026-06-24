@@ -10,6 +10,7 @@ from typing import List, Optional
 class SerialReader:
     """Interfaz con el puerto serie del Arduino."""
 
+    """Función de inico que establece los parametros iniciales para la conexión con el Arduino"""
     def __init__(self, port: str, baudrate: int):
         self.port = port
         self.baudrate = baudrate
@@ -17,6 +18,7 @@ class SerialReader:
         self.is_scanning = False
         self.leds_enabled = False
 
+    """Función que realiza la conexión con el puerto serie del Arduino, devolviendo si ha sido exitosa o no"""
     def connect(self) -> bool:
         try:
             self.serial_connection = _serial.Serial(self.port, self.baudrate, timeout=1)
@@ -25,12 +27,14 @@ class SerialReader:
         except _serial.SerialException as e:
             print(f"Error al conectar: {e}")
             return False
-
+        
+    """Función que desconecta el arduino del puerto serie cesando la conexión si esta existe"""
     def disconnect(self):
         if self.serial_connection and self.serial_connection.is_open:
             self.serial_connection.close()
             print("Conexión cerrada")
 
+    """Función que envía comandos al Arduino para interactuar con eñ senor"""
     def send_command(self, command: str) -> Optional[str]:
         if not self.serial_connection or not self.serial_connection.is_open:
             print("No hay conexión serial activa.")
@@ -43,7 +47,8 @@ class SerialReader:
         except _serial.SerialException as e:
             print(f"Error al enviar el comando: {e}")
             return None
-
+        
+    """Función que comienza el escaneo del sensor, enviando el comando pertinente"""
     def start_scanning(self) -> bool:
         response = self.send_command("s")
         if response == "Scanning ...":
@@ -55,6 +60,7 @@ class SerialReader:
         print("No se pudo iniciar el escaneo")
         return False
 
+    """Función que detiene el escaneo del sensor, enviando el comando pertinente"""
     def stop_scanning(self) -> bool:
         response = self.send_command("x")
         if response == "Scan stopped":
@@ -64,6 +70,7 @@ class SerialReader:
         print("No se pudo detener el escaneo")
         return False
 
+    """Función que cambia el estado de los LEDs, enviando el comando pertinente"""
     def change_leds(self) -> bool:
         response = self.send_command("l")
         if response is not None:
@@ -73,6 +80,7 @@ class SerialReader:
         print("No se pudo cambiar el estado de los LEDs")
         return False
 
+    """Función que lee los datos que recibe del sensor y los pasa a una lista"""
     def read_data(self) -> Optional[List[float]]:
         if not self.serial_connection or not self.serial_connection.is_open:
             print("No hay conexión serial activa.")
@@ -91,6 +99,7 @@ class SerialReader:
             print(f"Error al leer datos: {e}")
             return None
 
+    """Función que ejecuta el scaneo del sensor y almacena los datos en un CSV"""
     def run_scanning(self, output_file: Optional[str] = None, max_reads: int = 100):
         if not self.start_scanning():
             return
@@ -115,9 +124,8 @@ class SerialReader:
         finally:
             self.stop_scanning()
 
-
 if __name__ == "__main__":
-    reader = SerialReader(port="COM4", baudrate=115200)
+    reader = SerialReader(port="COM4", baudrate=115200) # Creamos el serial reader con los datos por defecto, luego se elegiran desde la interfaz
     if not reader.connect():
         print("Error: No se pudo conectar al Arduino.")
         exit(1)
@@ -128,7 +136,7 @@ if __name__ == "__main__":
 
 
 class MockSerialReader:
-    """Genera datos simulados para probar la interfaz sin hardware real."""
+    """Genera datos simulados para probar la interfaz sin hardware real. Son como los anteriores pero no necesitan un arduino conectado"""
 
     def __init__(self, port: str = "Modo Prueba", baudrate: int = 115200):
         self.port = port
@@ -164,6 +172,7 @@ class MockSerialReader:
         self.leds_enabled = not self.leds_enabled
         return True
 
+    """Esta función genera datos aleatorios para poder ver el funcionamiento de la interfaz de forma correcta"""
     def read_data(self) -> Optional[List[float]]:
         if not self.is_scanning:
             return None

@@ -1,7 +1,9 @@
 import os
 import sys
 
-
+'''
+Función para obtener la ruta del proyecto
+'''
 def _get_base_dir():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
@@ -13,13 +15,17 @@ def _get_base_dir():
         )
     )
 
-
+'''
+Función para obtener la ruta temporal de pyinstaller
+'''
 def _get_meipass():
     if getattr(sys, 'frozen', False):
         return sys._MEIPASS
     return _get_base_dir()
 
-
+'''
+Constantes de las rutas del proyecto
+'''
 _BASE_DIR = _get_base_dir()
 _MEIPASS  = _get_meipass()
 

@@ -5,8 +5,14 @@ from PyQt6.QtWidgets import (
 
 from hives.constants import CAL_BLANCO, CAL_OSCURO
 
-
+# -------------------------------------------------------------------- #
+#                  PopUp para nombre muestra                           #
+# -------------------------------------------------------------------- #
 class NombreAnalisisDialog(QDialog):
+
+    # -------------------------------------------------------------------- #
+    #                Cargamos el popup para el nombre                      #
+    # -------------------------------------------------------------------- #
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Nuevo análisis")
@@ -37,6 +43,9 @@ class NombreAnalisisDialog(QDialog):
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
         lay.addWidget(buttons)
 
+    # -------------------------------------------------------------------- #
+    #        Si aceptamos, comprobamos si hay nombre, sino salta error     #
+    # -------------------------------------------------------------------- #
     def _on_accept(self):
         if not self.input_nombre.text().strip():
             self.input_nombre.setPlaceholderText("Introduce un nombre")
@@ -47,11 +56,21 @@ class NombreAnalisisDialog(QDialog):
             return
         self.accept()
 
+    # -------------------------------------------------------------------- #
+    #               Devolvemos el nombre introducido                       #
+    # -------------------------------------------------------------------- #
     def nombre(self) -> str:
         return self.input_nombre.text().strip()
 
 
+# -------------------------------------------------------------------- #
+#               PopUp del asistente de calibración                     #
+# -------------------------------------------------------------------- #
 class CalibracionDialog(QDialog):
+
+    # -------------------------------------------------------------------- #
+    #        Cargamos el popup para elegir el tipo de calibracion          #
+    # -------------------------------------------------------------------- #
     def __init__(self, parent=None, duracion_default: str = "5"):
         super().__init__(parent)
         self.setWindowTitle("Nueva calibración")
@@ -95,9 +114,15 @@ class CalibracionDialog(QDialog):
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
         lay.addWidget(buttons)
 
+    # -------------------------------------------------------------------- #
+    #               Guardamos el tipo seleccionado                         #
+    # -------------------------------------------------------------------- #
     def tipo(self) -> str:
         return CAL_BLANCO if self.combo_tipo.currentIndex() == 0 else CAL_OSCURO
 
+    # -------------------------------------------------------------------- #
+    #              Guardadmos el tiempo, si no hay cogemos 5               #
+    # -------------------------------------------------------------------- #
     def duracion(self) -> int:
         t = self.input_dur.text().strip()
         return int(t) if t.isdigit() else 5

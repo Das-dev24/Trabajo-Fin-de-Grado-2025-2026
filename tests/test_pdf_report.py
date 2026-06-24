@@ -4,7 +4,9 @@ import pytest
 fpdf = pytest.importorskip("fpdf", reason="fpdf2 not installed")
 
 
-# ── _conclusion_text ──────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#             Texto de la conclusioón                                  #
+# -------------------------------------------------------------------- #
 
 def test_conclusion_text_high_confidence():
     from hives.reports.pdf_report import _conclusion_text
@@ -51,7 +53,9 @@ def test_conclusion_text_calibrado_false():
     assert "sin calibración" in text
 
 
-# ── _build_spectrum_chart ─────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#               Construcción del gráfico                               #
+# -------------------------------------------------------------------- #
 
 mpl = pytest.importorskip("matplotlib", reason="matplotlib not installed")
 
@@ -80,7 +84,9 @@ def test_build_spectrum_chart_mpl_unavailable(mocker):
     assert _build_spectrum_chart([0.5] * 18) is None
 
 
-# ── generate_pdf ──────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                      Generación del PDF                              #
+# -------------------------------------------------------------------- #
 
 _PDF_KWARGS = dict(
     analisis_id=1,
@@ -121,5 +127,5 @@ def test_generate_pdf_empty_probabilities(tmp_path):
     from hives.reports.pdf_report import generate_pdf
     kwargs = dict(_PDF_KWARGS, probabilidades=[])
     path = str(tmp_path / "out_empty.pdf")
-    generate_pdf(path=path, **kwargs)  # must not raise
+    generate_pdf(path=path, **kwargs)  # No debe fallar
     assert os.path.exists(path)

@@ -7,17 +7,14 @@ from typing import Optional
 
 from fpdf import FPDF, XPos, YPos
 
+from hives.constants import WAVELENGTHS
+
 try:
     import matplotlib
     import matplotlib.pyplot as plt
     _MPL_OK = True
 except ImportError:
     _MPL_OK = False
-
-WAVELENGTHS = [
-    410, 435, 460, 485, 510, 535, 560, 585,
-    610, 645, 680, 705, 730, 760, 810, 860, 900, 940,
-]
 
 HONEY_CLASSES = [
     "BorageField", "Clover", "Kamahi", "Manuka",

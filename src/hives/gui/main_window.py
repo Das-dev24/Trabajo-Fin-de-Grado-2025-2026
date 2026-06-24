@@ -25,7 +25,7 @@ from hives.constants import (
     MODO_REFLECTANCIA, MODO_TRANSMITANCIA,
 )
 from hives.core.sensor import SerialReader, MockSerialReader
-from hives.core.database import seed_database
+from hives.core.database import seed_database, db_connection
 from hives.gui.dialogs import NombreAnalisisDialog, CalibracionDialog
 from hives.gui.widgets import SpectralCanvas
 from hives.gui.workers import SerialWorker
@@ -36,8 +36,14 @@ from hives.core.paths import ICON_PATH
 
 logger = logging.getLogger(__name__)
 
-
+# -------------------------------------------------------------------- #
+#                        Ventana Principal                             #
+# -------------------------------------------------------------------- #
 class SpectroControlUI(QMainWindow):
+
+    # -------------------------------------------------------------------- #
+    #                              Vista Principal                         #
+    # -------------------------------------------------------------------- #
     def __init__(self):
         super().__init__()
         self.setWindowIcon(QIcon(ICON_PATH))
@@ -56,15 +62,16 @@ class SpectroControlUI(QMainWindow):
         self._nombre_analisis: str = ""
         self._model = load_model(MODEL_PATH)
         self._model_error: str = _model_module.last_load_error if self._model is None else ""
+
+        # Comprobamos que el modelo esta correctamnete cargado
         if self._model is None:
             logger.error("Modelo NO cargado: %s", self._model_error)
         else:
             logger.info("Modelo cargado correctamente")
 
-        self._calibraciones: dict = {
-            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
-            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
-        }
+        # Innicializamos las variables para guardar la calibración y los estados del arduino
+        self._calibraciones: dict = {}
+        self._reset_calibraciones()
         self._modo_captura: str = "analisis"
         self._cal_tipo_pendiente: str = ""
         self._aplicar_calibracion: bool = True
@@ -74,7 +81,10 @@ class SpectroControlUI(QMainWindow):
         self._init_ui()
         self._scan_ports()
         self._cargar_calibraciones_db()
-
+        
+    # -------------------------------------------------------------------- #
+    #                    Inicio UI, BD y carga de vista                    #
+    # -------------------------------------------------------------------- #
     def _init_ui(self):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         seed_database()
@@ -100,17 +110,17 @@ class SpectroControlUI(QMainWindow):
         rl.addWidget(self._build_bottom_bar())
         root.addWidget(right)
 
-    # ------------------------------------------------------------------ #
-    #  Inferencia                                                          #
-    # ------------------------------------------------------------------ #
+
+    # -------------------------------------------------------------------- #
+    #      Ejecutamos la clasificación sobre el modelo cargado             #
+    # -------------------------------------------------------------------- #
 
     def _run_inference(self, norm_vector: list) -> tuple:
         return run_inference(self._model, norm_vector)
 
-    # ------------------------------------------------------------------ #
-    #  Construcción de la UI                                               #
-    # ------------------------------------------------------------------ #
-
+    # -------------------------------------------------------------------- #
+    #                     Construcción barra lateral                       #
+    # -------------------------------------------------------------------- #
     def _build_sidebar(self) -> QFrame:
         sidebar = QFrame()
         sidebar.setFixedWidth(220)
@@ -205,7 +215,10 @@ class SpectroControlUI(QMainWindow):
         self.lbl_conn_status.setWordWrap(True)
         lay.addWidget(self.lbl_conn_status)
         return sidebar
-
+    
+    # -------------------------------------------------------------------- #
+    #            Cargamos el widget con los datos caputrados               #
+    # -------------------------------------------------------------------- #
     def _build_live_page(self) -> QWidget:
         page = QWidget()
         lay = QVBoxLayout(page)
@@ -233,12 +246,12 @@ class SpectroControlUI(QMainWindow):
         lay.addLayout(body)
         return page
 
+    # -------------------------------------------------------------------- #
+    #        Construimos el panel con los parámetros del arduino           #
+    # -------------------------------------------------------------------- #
     def _build_params_panel(self) -> QFrame:
-        frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }")
-        lay = QVBoxLayout(frame)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(6)
+        frame = self._make_panel()
+        lay = frame.layout()
 
         lay.addWidget(self._section_label("Parámetros del instrumento", dark=False))
 
@@ -269,12 +282,12 @@ class SpectroControlUI(QMainWindow):
         lay.addLayout(grid)
         return frame
 
+    # -------------------------------------------------------------------- #
+    #             Consturimos el pane de estado del arduino                #
+    # -------------------------------------------------------------------- #
     def _build_diagnostics_panel(self) -> QFrame:
-        frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }")
-        lay = QVBoxLayout(frame)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(6)
+        frame = self._make_panel()
+        lay = frame.layout()
 
         lay.addWidget(self._section_label("Estado", dark=False))
 
@@ -300,12 +313,12 @@ class SpectroControlUI(QMainWindow):
         lay.addLayout(grid)
         return frame
 
+    # -------------------------------------------------------------------- #
+    #          Creamos el panel con el gráfico en tiempo real              #
+    # -------------------------------------------------------------------- #
     def _build_graph_panel(self) -> QFrame:
-        frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px; }")
-        lay = QVBoxLayout(frame)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(6)
+        frame = self._make_panel("#f8f8f8")
+        lay = frame.layout()
 
         header = QHBoxLayout()
         header.addWidget(QLabel("Espectro en tiempo real"))
@@ -321,6 +334,10 @@ class SpectroControlUI(QMainWindow):
         lay.addWidget(self.canvas)
         return frame
 
+    # -------------------------------------------------------------------- #
+    #                   Creamos vista del historial                        #
+    # -------------------------------------------------------------------- #
+    
     def _build_history_page(self) -> QWidget:
         page = QWidget()
         lay = QVBoxLayout(page)
@@ -331,7 +348,7 @@ class SpectroControlUI(QMainWindow):
         lbl.setStyleSheet("font-size: 18px; font-weight: bold;")
         lay.addWidget(lbl)
 
-        # ── Barra de filtros ───────────────────────────────────────────────
+        # Barra de filtros
         filter_frame = QFrame()
         filter_frame.setStyleSheet(
             "QFrame { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }"
@@ -391,15 +408,16 @@ class SpectroControlUI(QMainWindow):
 
         lay.addWidget(filter_frame)
 
-        # ── Tabla ──────────────────────────────────────────────────────────
+        # Tabla de datos
         self._history_table = self._build_history_table()
         lay.addWidget(self._history_table)
-
-        # ── Poblar combo de clases con valores de la BD ────────────────────
         self._populate_clase_filter()
 
         return page
 
+    # -------------------------------------------------------------------- #
+    #      Construimos la barra inferior con los botones y el estado       #
+    # -------------------------------------------------------------------- #
     def _build_bottom_bar(self) -> QFrame:
         bar = QFrame()
         bar.setFixedHeight(52)
@@ -493,12 +511,12 @@ class SpectroControlUI(QMainWindow):
         lay.addWidget(self.btn_save_manual)
         return bar
 
+    # -------------------------------------------------------------------- #
+    #           Construimos el panel de gestion de calibraciones           #
+    # -------------------------------------------------------------------- #
     def _build_calibration_panel(self) -> QFrame:
-        frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }")
-        lay = QVBoxLayout(frame)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(6)
+        frame = self._make_panel()
+        lay = frame.layout()
 
         header = QHBoxLayout()
         self.lbl_cal_titulo = QLabel("CALIBRACIÓN · REFLECTANCIA")
@@ -550,9 +568,9 @@ class SpectroControlUI(QMainWindow):
 
         return frame
 
-    # ------------------------------------------------------------------ #
-    #  Estilos                                                             #
-    # ------------------------------------------------------------------ #
+    # -------------------------------------------------------------------- #
+    #                               Estilos                                #
+    # -------------------------------------------------------------------- #
 
     @staticmethod
     def _btn_style(kind: str, enabled: bool = True) -> str:
@@ -580,15 +598,29 @@ class SpectroControlUI(QMainWindow):
         return base + "background: transparent; color: #aaa; } QPushButton:hover { background: #3c3c3c; color: #eee; }"
 
     @staticmethod
+    def _normalize(mean: list) -> list:
+        peak = max(mean) if max(mean) > 0 else 1.0
+        return [round(v / peak, 6) for v in mean]
+
+    @staticmethod
+    def _make_panel(bg: str = "#f5f5f5") -> QFrame:
+        frame = QFrame()
+        frame.setStyleSheet(f"QFrame {{ background: {bg}; border: 1px solid #ddd; border-radius: 4px; }}")
+        lay = QVBoxLayout(frame)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(6)
+        return frame
+
+    @staticmethod
     def _section_label(text: str, dark: bool = True) -> QLabel:
         lbl = QLabel(text.upper())
         color = "#666" if dark else "#999"
         lbl.setStyleSheet(f"color: {color}; font-size: 10px; font-weight: bold; padding: 2px 0;")
         return lbl
 
-    # ------------------------------------------------------------------ #
-    #  Navegación y puertos                                                #
-    # ------------------------------------------------------------------ #
+    # -------------------------------------------------------------------- #
+    #                       Navegación y puertos                           #
+    # -------------------------------------------------------------------- #
 
     def _navigate(self, index: int):
         self.stack.setCurrentIndex(index)
@@ -603,9 +635,9 @@ class SpectroControlUI(QMainWindow):
         else:
             self.combo_port.addItem("Sin puertos disponibles")
 
-    # ------------------------------------------------------------------ #
-    #  Conexión y LEDs                                                     #
-    # ------------------------------------------------------------------ #
+    # -------------------------------------------------------------------- #
+    #                           Conexión y LEDs                            #
+    # ---------------------------------------------------------------------#
 
     def _toggle_connection(self):
         if not self._connected:
@@ -682,9 +714,9 @@ class SpectroControlUI(QMainWindow):
         else:
             QMessageBox.warning(self, "Error LED", "No se pudo cambiar el modo de los LEDs.")
 
-    # ------------------------------------------------------------------ #
-    #  Adquisición                                                         #
-    # ------------------------------------------------------------------ #
+    # -------------------------------------------------------------------- #
+    #                               Adquisición                            #
+    # -------------------------------------------------------------------- #
 
     def _request_scan(self):
         if not self._connected or self._scanning:
@@ -876,55 +908,13 @@ class SpectroControlUI(QMainWindow):
 
         self._modo_captura = "analisis"
 
-    # ------------------------------------------------------------------ #
-    #  Persistencia                                                        #
-    # ------------------------------------------------------------------ #
+    # -------------------------------------------------------------------- #
+    #                              Persistencia                            #
+    # -------------------------------------------------------------------- #
 
-    def _run_full_analysis(self):
-        mean = self._compute_mean()
-        if not mean:
-            self._set_status("Sin datos para analizar")
-            return
-
-        peak = max(mean) if max(mean) > 0 else 1.0
-        norm = [round(v / peak, 6) for v in mean]
-
-        clase, probs = self._run_inference(norm)
-
-        try:
-            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS muestras (
-                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                    espectro_raw         TEXT    NOT NULL,
-                    espectro_normalizado TEXT    NOT NULL,
-                    modo_medicion        VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
-                    calibracion_aplicada INTEGER    NOT NULL DEFAULT 0,
-                    notas                TEXT
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS predicciones (
-                    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-                    clase_miel            VARCHAR(255),
-                    vector_probabilidades TEXT
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS analisis (
-                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre_analisis VARCHAR(255) NOT NULL,
-                    timestamp       DATETIME     NOT NULL,
-                    id_muestra      INTEGER      NOT NULL,
-                    id_prediccion   INTEGER,
-                    FOREIGN KEY (id_muestra)    REFERENCES muestras(id)     ON DELETE CASCADE,
-                    FOREIGN KEY (id_prediccion) REFERENCES predicciones(id) ON DELETE SET NULL
-                )
-            """)
-
+    def _persist_analysis(self, mean, norm, clase=None, probs=None):
+        with db_connection() as conn:
+            cur = conn.cursor()
             cur.execute(
                 "INSERT INTO muestras (espectro_raw, espectro_normalizado, "
                 "modo_medicion, calibracion_aplicada) VALUES (?, ?, ?, ?)",
@@ -934,11 +924,13 @@ class SpectroControlUI(QMainWindow):
             )
             id_muestra = cur.lastrowid
 
-            cur.execute(
-                "INSERT INTO predicciones (clase_miel, vector_probabilidades) VALUES (?, ?)",
-                (clase, str(probs)),
-            )
-            id_prediccion = cur.lastrowid
+            id_prediccion = None
+            if clase and probs:
+                cur.execute(
+                    "INSERT INTO predicciones (clase_miel, vector_probabilidades) VALUES (?, ?)",
+                    (clase, str(probs)),
+                )
+                id_prediccion = cur.lastrowid
 
             ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             cur.execute(
@@ -946,16 +938,24 @@ class SpectroControlUI(QMainWindow):
                 "VALUES (?, ?, ?, ?)",
                 (self._nombre_analisis, ts, id_muestra, id_prediccion),
             )
+        return ts
 
-            conn.commit()
-            conn.close()
+    def _run_full_analysis(self):
+        mean = self._compute_mean()
+        if not mean:
+            self._set_status("Sin datos para analizar")
+            return
 
+        norm = self._normalize(mean)
+        clase, probs = self._run_inference(norm)
+
+        try:
+            ts = self._persist_analysis(mean, norm, clase, probs)
             n = len(self.captured_data)
             self.lbl_last_save.setText(f"«{self._nombre_analisis}» → {clase}  |  {ts}")
             self._set_status(f"Análisis completado: {clase}  (media de {n} lecturas)")
             self._refresh_history()
             self._refresh_medidas()
-
         except sqlite3.Error as e:
             self._set_status("Error al guardar en DB")
             QMessageBox.critical(self, "Error de base de datos", str(e))
@@ -966,61 +966,15 @@ class SpectroControlUI(QMainWindow):
             self._set_status("Sin datos para guardar")
             return
 
-        peak = max(mean) if max(mean) > 0 else 1.0
-        norm = [round(v / peak, 6) for v in mean]
+        norm = self._normalize(mean)
 
         try:
-            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS muestras (
-                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                    espectro_raw         TEXT    NOT NULL,
-                    espectro_normalizado TEXT    NOT NULL,
-                    modo_medicion        VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
-                    calibracion_aplicada INTEGER    NOT NULL DEFAULT 0,
-                    notas                TEXT
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS analisis (
-                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre_analisis VARCHAR(255) NOT NULL,
-                    timestamp       DATETIME     NOT NULL,
-                    id_muestra      INTEGER      NOT NULL,
-                    id_prediccion   INTEGER,
-                    FOREIGN KEY (id_muestra)    REFERENCES muestras(id)     ON DELETE CASCADE,
-                    FOREIGN KEY (id_prediccion) REFERENCES predicciones(id) ON DELETE SET NULL
-                )
-            """)
-
-            cur.execute(
-                "INSERT INTO muestras (espectro_raw, espectro_normalizado, "
-                "modo_medicion, calibracion_aplicada) VALUES (?, ?, ?, ?)",
-                (str(mean), str(norm),
-                 self._get_modo_medicion(),
-                 int(self._cal_disponible_y_activa())),
-            )
-            id_muestra = cur.lastrowid
-
-            ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            cur.execute(
-                "INSERT INTO analisis (nombre_analisis, timestamp, id_muestra, id_prediccion) "
-                "VALUES (?, ?, ?, ?)",
-                (self._nombre_analisis, ts, id_muestra, None),
-            )
-
-            conn.commit()
-            conn.close()
-
+            ts = self._persist_analysis(mean, norm)
             n = len(self.captured_data)
             self.lbl_last_save.setText(f"«{self._nombre_analisis}» guardado sin predicción  |  {ts}")
             self._set_status(f"Muestra guardada  (media de {n} lecturas, sin clasificar)")
             self._refresh_history()
             self._refresh_medidas()
-
         except sqlite3.Error as e:
             self._set_status("Error al guardar en DB")
             QMessageBox.critical(self, "Error de base de datos", str(e))
@@ -1055,23 +1009,22 @@ class SpectroControlUI(QMainWindow):
 
         db_rows = []
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            cur.execute("""
-                SELECT m.espectro_normalizado, m.modo_medicion, m.calibracion_aplicada,
-                       p.clase_miel, p.vector_probabilidades
-                FROM muestras m
-                LEFT JOIN analisis a     ON m.id = a.id_muestra
-                LEFT JOIN predicciones p ON a.id_prediccion = p.id
-            """)
-            for norm, modo, cal_apl, clase, probs in cur.fetchall():
-                try:
-                    espectro = ast.literal_eval(norm)
-                    db_rows.append((espectro, modo or "", int(cal_apl or 0),
-                                    clase or "", probs or ""))
-                except (ValueError, SyntaxError):
-                    continue
-            conn.close()
+            with db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT m.espectro_normalizado, m.modo_medicion, m.calibracion_aplicada,
+                           p.clase_miel, p.vector_probabilidades
+                    FROM muestras m
+                    LEFT JOIN analisis a     ON m.id = a.id_muestra
+                    LEFT JOIN predicciones p ON a.id_prediccion = p.id
+                """)
+                for norm, modo, cal_apl, clase, probs in cur.fetchall():
+                    try:
+                        espectro = ast.literal_eval(norm)
+                        db_rows.append((espectro, modo or "", int(cal_apl or 0),
+                                        clase or "", probs or ""))
+                    except (ValueError, SyntaxError):
+                        continue
         except sqlite3.Error:
             pass
 
@@ -1091,8 +1044,7 @@ class SpectroControlUI(QMainWindow):
                     for espectro, modo, cal_apl, clase, probs in db_rows:
                         writer.writerow(espectro + [modo, cal_apl, clase, probs])
                 else:
-                    peak = max(mean) if max(mean) > 0 else 1.0
-                    norm = [round(v / peak, 6) for v in mean]
+                    norm = self._normalize(mean)
                     writer.writerow(
                         norm + [self._get_modo_medicion(),
                                 int(self._cal_disponible_y_activa()),
@@ -1138,23 +1090,25 @@ class SpectroControlUI(QMainWindow):
         except OSError as e:
             QMessageBox.critical(self, "Error al guardar", str(e))
 
-    # ── Construcción y recarga de la tabla de historial ──────────────────── #
+    
+    # -------------------------------------------------------------------- #
+    #                              Tabla de historial                      #
+    # -------------------------------------------------------------------- #
 
     def _build_history_table(self) -> QTableWidget:
         """Crea la QTableWidget con los datos de la BD y un botón PDF por fila."""
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.execute('''
-                SELECT a.id, a.nombre_analisis, a.timestamp,
-                       m.modo_medicion, m.calibracion_aplicada,
-                       p.clase_miel
-                FROM analisis a
-                LEFT JOIN muestras m     ON a.id_muestra   = m.id
-                LEFT JOIN predicciones p ON a.id_prediccion = p.id
-                ORDER BY a.timestamp DESC
-            ''')
-            datos = cursor.fetchall()
-            conn.close()
+            with db_connection() as conn:
+                cursor = conn.execute('''
+                    SELECT a.id, a.nombre_analisis, a.timestamp,
+                           m.modo_medicion, m.calibracion_aplicada,
+                           p.clase_miel
+                    FROM analisis a
+                    LEFT JOIN muestras m     ON a.id_muestra   = m.id
+                    LEFT JOIN predicciones p ON a.id_prediccion = p.id
+                    ORDER BY a.timestamp DESC
+                ''')
+                datos = cursor.fetchall()
         except sqlite3.Error:
             datos = []
 
@@ -1231,12 +1185,11 @@ class SpectroControlUI(QMainWindow):
         self.filter_clase.clear()
         self.filter_clase.addItem("Todas")
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
-            cur.execute("SELECT DISTINCT clase_miel FROM predicciones WHERE clase_miel IS NOT NULL ORDER BY clase_miel")
-            for (cls,) in cur.fetchall():
-                self.filter_clase.addItem(cls)
-            conn.close()
+            with db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT DISTINCT clase_miel FROM predicciones WHERE clase_miel IS NOT NULL ORDER BY clase_miel")
+                for (cls,) in cur.fetchall():
+                    self.filter_clase.addItem(cls)
         except sqlite3.Error:
             pass
         # Restaurar selección previa si existe
@@ -1245,7 +1198,9 @@ class SpectroControlUI(QMainWindow):
             self.filter_clase.setCurrentIndex(idx)
         self.filter_clase.blockSignals(False)
 
-    # ── Filtros ────────────────────────────────────────────────────────────── #
+    # -------------------------------------------------------------------- #
+    #                              Filtros                                 #
+    # -------------------------------------------------------------------- #
 
     def _apply_filters(self, _=None):
         """Aplica todos los filtros activos sobre la tabla."""
@@ -1290,25 +1245,26 @@ class SpectroControlUI(QMainWindow):
 
             self._history_table.setRowHidden(row, not visible)
 
-    # ── Generación de PDF individual (botón por fila) ─────────────────────── #
+    # -------------------------------------------------------------------- #
+    #                              Generación de PDF                       #
+    # -------------------------------------------------------------------- #
 
     def _fetch_analisis_data(self, analisis_id: int) -> dict | None:
         """Consulta la BD y devuelve un dict con los datos del análisis."""
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT a.nombre_analisis, a.timestamp,
-                       m.modo_medicion, m.calibracion_aplicada,
-                       m.espectro_normalizado,
-                       p.clase_miel, p.vector_probabilidades
-                FROM analisis a
-                LEFT JOIN muestras     m ON a.id_muestra   = m.id
-                LEFT JOIN predicciones p ON a.id_prediccion = p.id
-                WHERE a.id = ?
-            ''', (analisis_id,))
-            row = cur.fetchone()
-            conn.close()
+            with db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute('''
+                    SELECT a.nombre_analisis, a.timestamp,
+                           m.modo_medicion, m.calibracion_aplicada,
+                           m.espectro_normalizado,
+                           p.clase_miel, p.vector_probabilidades
+                    FROM analisis a
+                    LEFT JOIN muestras     m ON a.id_muestra   = m.id
+                    LEFT JOIN predicciones p ON a.id_prediccion = p.id
+                    WHERE a.id = ?
+                ''', (analisis_id,))
+                row = cur.fetchone()
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Error de base de datos", str(e))
             return None
@@ -1373,7 +1329,7 @@ class SpectroControlUI(QMainWindow):
             QMessageBox.critical(self, "Error al generar PDF", str(e))
 
     # ------------------------------------------------------------------ #
-    #  Calibración                                                         #
+#                            Calibración                                 #
     # ------------------------------------------------------------------ #
 
     def _actualizar_estado_calibracion(self, tipo: str = None):
@@ -1402,16 +1358,11 @@ class SpectroControlUI(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         ) != QMessageBox.StandardButton.Yes:
             return
-        self._calibraciones = {
-            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
-            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
-        }
+        self._reset_calibraciones()
         self._actualizar_estado_calibracion()
         try:
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute("DELETE FROM calibraciones")
-            conn.commit()
-            conn.close()
+            with db_connection() as conn:
+                conn.execute("DELETE FROM calibraciones")
         except sqlite3.Error:
             pass
         self._set_status("Calibraciones eliminadas (todos los modos)")
@@ -1422,26 +1373,12 @@ class SpectroControlUI(QMainWindow):
 
     def _persistir_calibracion(self, tipo: str, valores: list, ts: str, modo: str):
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS calibraciones (
-                    tipo          VARCHAR(16) NOT NULL,
-                    modo_medicion VARCHAR(32) NOT NULL DEFAULT 'reflectancia',
-                    valores       TEXT        NOT NULL,
-                    timestamp     DATETIME    NOT NULL,
-                    PRIMARY KEY (tipo, modo_medicion),
-                    CHECK (tipo          IN ('blanco', 'oscuro')),
-                    CHECK (modo_medicion IN ('reflectancia', 'transmitancia'))
+            with db_connection() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO calibraciones (tipo, modo_medicion, valores, timestamp) "
+                    "VALUES (?, ?, ?, ?)",
+                    (tipo, modo, str(valores), ts),
                 )
-            """)
-            cur.execute(
-                "INSERT OR REPLACE INTO calibraciones (tipo, modo_medicion, valores, timestamp) "
-                "VALUES (?, ?, ?, ?)",
-                (tipo, modo, str(valores), ts),
-            )
-            conn.commit()
-            conn.close()
         except sqlite3.Error as e:
             QMessageBox.warning(self, "Calibración", f"No se pudo persistir en DB:\n{e}")
 
@@ -1449,20 +1386,19 @@ class SpectroControlUI(QMainWindow):
         try:
             if not os.path.exists(DB_PATH):
                 return
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            cur.execute("PRAGMA table_info(calibraciones)")
-            cols = [row[1] for row in cur.fetchall()]
-            if not cols:
-                conn.close()
-                return
-            if 'modo_medicion' in cols:
-                cur.execute("SELECT tipo, modo_medicion, valores, timestamp FROM calibraciones")
-                rows = [(t, m, v, ts) for t, m, v, ts in cur.fetchall()]
-            else:
-                cur.execute("SELECT tipo, valores, timestamp FROM calibraciones")
-                rows = [(t, MODO_REFLECTANCIA, v, ts) for t, v, ts in cur.fetchall()]
-            conn.close()
+            rows = []
+            with db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("PRAGMA table_info(calibraciones)")
+                cols = [row[1] for row in cur.fetchall()]
+                if not cols:
+                    return
+                if 'modo_medicion' in cols:
+                    cur.execute("SELECT tipo, modo_medicion, valores, timestamp FROM calibraciones")
+                    rows = [(t, m, v, ts) for t, m, v, ts in cur.fetchall()]
+                else:
+                    cur.execute("SELECT tipo, valores, timestamp FROM calibraciones")
+                    rows = [(t, MODO_REFLECTANCIA, v, ts) for t, v, ts in cur.fetchall()]
 
             for tipo, modo, valores_str, ts in rows:
                 try:
@@ -1476,7 +1412,7 @@ class SpectroControlUI(QMainWindow):
             pass
 
     # ------------------------------------------------------------------ #
-    #  Helpers                                                             #
+    #                               Helpers                              #
     # ------------------------------------------------------------------ #
 
     def _compute_mean(self) -> list:
@@ -1506,6 +1442,12 @@ class SpectroControlUI(QMainWindow):
         modo = modo or self._get_modo_medicion()
         return self._calibraciones.get(modo, {}).get(tipo)
 
+    def _reset_calibraciones(self):
+        self._calibraciones = {
+            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
+            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
+        }
+
     def _set_cal(self, tipo: str, modo: str, valores: list, ts: str):
         self._calibraciones.setdefault(
             modo, {CAL_BLANCO: None, CAL_OSCURO: None}
@@ -1533,7 +1475,7 @@ class SpectroControlUI(QMainWindow):
         return out
 
     # ------------------------------------------------------------------ #
-    #  Página de medidas (espectros de la tabla muestras)                   #
+    #           Página de medidas (espectros de la tabla muestras)       #
     # ------------------------------------------------------------------ #
 
     def _build_medidas_page(self) -> QWidget:
@@ -1587,14 +1529,13 @@ class SpectroControlUI(QMainWindow):
         table.verticalHeader().setVisible(False)
 
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            cur.execute(
-                f"SELECT id, modo_medicion, calibracion_aplicada, "
-                f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
-            )
-            rows = cur.fetchall()
-            conn.close()
+            with db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    f"SELECT id, modo_medicion, calibracion_aplicada, "
+                    f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
+                )
+                rows = cur.fetchall()
         except sqlite3.Error:
             rows = []
 
@@ -1637,14 +1578,13 @@ class SpectroControlUI(QMainWindow):
         tipo_label   = "raw" if usar_raw else "normalizado"
 
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            cur.execute(
-                f"SELECT id, modo_medicion, calibracion_aplicada, "
-                f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
-            )
-            rows = cur.fetchall()
-            conn.close()
+            with db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    f"SELECT id, modo_medicion, calibracion_aplicada, "
+                    f"{col_espectro}, notas FROM muestras ORDER BY id DESC"
+                )
+                rows = cur.fetchall()
         except sqlite3.Error as e:
             QMessageBox.critical(self, "Error de base de datos", str(e))
             return
@@ -1673,7 +1613,7 @@ class SpectroControlUI(QMainWindow):
             QMessageBox.critical(self, "Error al guardar", str(e))
 
     # ------------------------------------------------------------------ #
-    #  Ciclo de vida                                                       #
+    #                       Ciclo de vida                                #
     # ------------------------------------------------------------------ #
 
     def closeEvent(self, event):
@@ -1681,8 +1621,5 @@ class SpectroControlUI(QMainWindow):
         if self.reader:
             self.reader.disconnect()
         self._capturas_manuales.clear()
-        self._calibraciones = {
-            MODO_REFLECTANCIA:  {CAL_BLANCO: None, CAL_OSCURO: None},
-            MODO_TRANSMITANCIA: {CAL_BLANCO: None, CAL_OSCURO: None},
-        }
+        self._reset_calibraciones()
         event.accept()

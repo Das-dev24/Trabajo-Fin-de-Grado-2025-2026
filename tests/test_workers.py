@@ -6,7 +6,9 @@ def _csv18(value: float = 1.0) -> bytes:
     return (",".join([str(value)] * 18) + "\n").encode("utf-8")
 
 
-# ── Emission ──────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                              Emitir                                  #
+# -------------------------------------------------------------------- #
 
 def test_worker_emits_data_received_on_18_values(qtbot, mock_reader, mock_serial):
     call_count = {"n": 0}
@@ -45,8 +47,9 @@ def test_worker_does_not_emit_for_none(qtbot, mock_reader, mock_serial):
     worker.stop()
     assert not blocker.signal_triggered
 
-
-# ── Stop behaviour ────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                            Para los trabajadores                     #
+# -------------------------------------------------------------------- #
 
 def test_worker_stop_sets_running_false(qtbot, mock_reader, mock_serial):
     mock_serial.readline.return_value = b""
@@ -61,12 +64,13 @@ def test_worker_stop_waits_for_thread(qtbot, mock_reader, mock_serial):
     mock_serial.readline.return_value = b""
     worker = SerialWorker(mock_reader)
     worker.start()
-    qtbot.wait(100)   # ensure run() has entered its loop before we stop
-    worker.stop()     # sets _running=False then self.wait(2000)
+    qtbot.wait(100)   # Aseguramos que ha entrado al run antes de pararlo
+    worker.stop()     # Pone eltado runnin g a false y esppera a que el hilo acabe
     assert not worker.isRunning()
 
-
-# ── Error signal ──────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------- #
+#                      Señal de error                                  #
+# -------------------------------------------------------------------- #
 
 def test_worker_error_not_emitted_normally(qtbot, mock_reader, mock_serial):
     """Documents current behaviour: SerialWorker.run() does not emit error_occurred."""
