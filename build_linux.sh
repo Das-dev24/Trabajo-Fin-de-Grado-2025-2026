@@ -6,7 +6,7 @@ VENV_DIR="/tmp/.build_venv"
 DIST_DIR="$SCRIPT_DIR/dist"
 
 #Versiones de python compatibles con TensorFlow
-TF_MAX_MINOR=13
+TF_MAX_MINOR=12
 TF_MIN_MINOR=9
 
 py_minor() { "$1" -c 'import sys; print(sys.version_info[1])' 2>/dev/null; }
@@ -49,7 +49,11 @@ if [ -z "$PYTHON" ]; then
     fi
     echo "Descargando Python 3.${TF_MAX_MINOR} con uv..."
     uv python install "3.${TF_MAX_MINOR}"
-    PYTHON="$(uv python find "3.${TF_MAX_MINOR}")"
+    PYTHON="$(uv python find "3.${TF_MAX_MINOR}")" || true
+    if [ -z "$PYTHON" ] || [ ! -x "$PYTHON" ]; then
+        echo "ERROR: uv no pudo encontrar Python 3.${TF_MAX_MINOR} tras instalarlo." >&2
+        exit 1
+    fi
 fi
 
 echo "Usando intérprete: $PYTHON ($("$PYTHON" --version 2>&1))"
@@ -69,8 +73,11 @@ pip install --upgrade pip -q
 pip install -r "$SCRIPT_DIR/requirements.txt" -q
 pip install pyinstaller -q
 
+echo "Limpiando directorios de salida previos..."
+rm -rf "$DIST_DIR" "$SCRIPT_DIR/build"
+
 echo "Ejecutando PyInstaller..."
-pyinstaller "$SCRIPT_DIR/HIVES.spec" --clean --noconfirm
+"$VENV_DIR/bin/pyinstaller" "$SCRIPT_DIR/HIVES.spec" --clean --noconfirm
 
 echo ""
 echo "Ejecutable en: $DIST_DIR/HIVES/"
