@@ -1,7 +1,8 @@
 # Runtime
 PyQt6>=6.4
 pyserial>=3.5
-tensorflow>=2.10
+#tensorflow>=2.10
+xgboost>=1.7
 numpy>=1.23
 matplotlib>=3.6
 fpdf2>=2.7

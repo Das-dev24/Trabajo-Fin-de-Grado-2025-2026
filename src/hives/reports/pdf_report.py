@@ -17,9 +17,8 @@ except ImportError:
     _MPL_OK = False
 
 HONEY_CLASSES = [
-    "BorageField", "Clover", "Kamahi", "Manuka",
-    "ManukaBlend", "ManukaUMF10", "ManukaUMF15", "ManukaUMF20",
-    "ManukaUMF5", "MultiFloral", "Rewarewa", "Sugar",
+    "Miel Jaramago", "Miel Sintética", "Miel de Bosque",
+    "Miel de Retama", "Miel de milflores",
 ]
 
 # Fuente del informe
