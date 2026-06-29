@@ -5,58 +5,39 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="${TMPDIR:-/tmp}/.hives_build_venv"
 DIST_DIR="$SCRIPT_DIR/dist"
 
-#Versiones de python compatibles con TensorFlow
-TF_MAX_MINOR=13
-TF_MIN_MINOR=9
-
-py_minor() { "$1" -c 'import sys; print(sys.version_info[1])' 2>/dev/null; }
-
-is_compatible() {
-    local py="$1" minor
-    minor="$(py_minor "$py")" || return 1
-    [ -n "$minor" ] || return 1
-    [ "$minor" -ge "$TF_MIN_MINOR" ] && [ "$minor" -le "$TF_MAX_MINOR" ]
-}
-
 PYTHON="${PYTHON:-}"
 
-#Vemos la verisón del python instalado
+# Si se especificó PYTHON, lo usamos directamente
 if [ -n "$PYTHON" ]; then
-    if ! is_compatible "$PYTHON"; then
-        echo "ERROR: \$PYTHON ($PYTHON) no es compatible con TensorFlow (requiere 3.${TF_MIN_MINOR}–3.${TF_MAX_MINOR})." >&2
+    if [ ! -x "$PYTHON" ]; then
+        echo "ERROR: \$PYTHON ($PYTHON) no es un ejecutable válido." >&2
         exit 1
     fi
 else
-    for cand in python3.13 python3.12 python3.11 python3.10 python3.9 python3 python; do
+    for cand in python3 python; do
         p="$(command -v "$cand" 2>/dev/null || true)"
-        if [ -n "$p" ] && is_compatible "$p"; then
+        if [ -n "$p" ]; then
             PYTHON="$p"
             break
         fi
     done
 fi
 
-#Si no es compatible isntalamos luna verisón que si con uv
 if [ -z "$PYTHON" ]; then
-    echo "No se encontró un Python compatible con TensorFlow (3.${TF_MIN_MINOR}–3.${TF_MAX_MINOR})."
+    echo "No se encontró un intérprete de Python."
     if ! command -v uv >/dev/null 2>&1; then
-        echo "Instalando uv para provisionar Python 3.${TF_MAX_MINOR}..."
+        echo "Instalando uv para provisionar Python..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
 
         [ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env"
         export PATH="$HOME/.local/bin:$PATH"
     fi
-    echo "Descargando Python 3.${TF_MAX_MINOR} con uv..."
-    uv python install "3.${TF_MAX_MINOR}"
-    PYTHON="$(uv python find "3.${TF_MAX_MINOR}")"
+    echo "Descargando Python 3 con uv..."
+    uv python install 3
+    PYTHON="$(uv python find 3)"
 fi
 
 echo "Usando intérprete: $PYTHON ($("$PYTHON" --version 2>&1))"
-
-if [ -d "$VENV_DIR" ] && ! is_compatible "$VENV_DIR/bin/python"; then
-    echo "El venv existente usa un Python incompatible; recreándolo..."
-    rm -rf "$VENV_DIR"
-fi
 
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creando entorno virtual..."

@@ -65,20 +65,6 @@ def mock_reader(mock_serial):
 
 
 @pytest.fixture
-def mock_model():
-    """Modewlo de prueba que devuelve probabilidades"""
-    from unittest.mock import MagicMock
-    import numpy as np
-    from hives.reports.pdf_report import HONEY_CLASSES
-
-    model = MagicMock()
-    probs = [1.0 / 12] * 12
-    model.predict.return_value = np.array([probs])
-    model.output_names = list(HONEY_CLASSES)
-    return model
-
-
-@pytest.fixture
 def window(qtbot, test_db, mocker):
     """Cambai en la vista principal las rutas para los test"""
     mocker.patch("hives.gui.main_window.DB_PATH", test_db)

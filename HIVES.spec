@@ -24,7 +24,7 @@ _SRC_DIR      = os.path.join(_PROJECT_ROOT, 'src')
 _datas = []
 _models_dir = os.path.join(_PROJECT_ROOT, 'models')
 if os.path.isdir(_models_dir):
-    for f in glob.glob(os.path.join(_models_dir, '*.keras')):
+    for f in glob.glob(os.path.join(_models_dir, '*.json')):
         _datas.append((f, 'models'))
     # clases.json con los nombres de las clases del modelo
     _json_path = os.path.join(_models_dir, 'clases.json')
@@ -45,17 +45,14 @@ if os.path.isfile(_icon_ico):
 
 # ── Hidden imports (modules PyInstaller may miss) ─────────────────────
 _hiddenimports = [
-    # TensorFlow
-    'tensorflow',
-    'tensorflow.python',
-    'tensorflow.python.framework',
-    'tensorflow.python.platform',
-    'tensorflow.python.saved_model',
-    'tensorflow.python.ops',
-    'tensorflow.python.keras',
-    'keras',
-    'keras.api',
-    # NumPy / SciPy
+    # XGBoost
+    'xgboost',
+    # scikit-learn (necesario para xgboost) y sus dependencias
+    'sklearn',
+    'scipy',
+    'joblib',
+    'threadpoolctl',
+    # NumPy
     'numpy',
     # PySerial
     'serial',
@@ -99,18 +96,10 @@ a = Analysis(
     excludes=[
         # GUI / test toolkits
         'tkinter', 'test',
-        # NOTE: do NOT exclude 'pdb' / 'pydoc' — absl.app imports pdb at module
-        # level, so excluding it breaks `import tensorflow` (ModuleNotFoundError).
         'lib2to3', 'curses', 'idlelib', 'turtledemo',
         # Unused data-science libraries (reduce build size significantly)
-        'pandas', 'scipy', 'sklearn', 'cv2',
+        'pandas', 'cv2',
         'setuptools',
-        # TensorBoard — separate package, not imported by `import tensorflow`
-        'tensorboard',
-        # NOTE: do NOT exclude any 'tensorflow.python.*' submodules. TF's core
-        # import chain pulls many of them transitively (e.g. profiler provides
-        # _pywrap_traceme, tools provides module_util), so excluding them breaks
-        # `import tensorflow` with ImportError.
     ],
     noarchive=False,
     optimize=1,
