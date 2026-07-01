@@ -171,11 +171,20 @@ HIVES/
 ├── arduino/                        # Código C/C++ para el microcontrolador del espectrómetro
 │   └── LecturasParaInterfaz.ino    # Sketch del sensor SparkFun AS7265X
 ├── assets/                         # Recursos gráficos (iconos, logos)
-├── build/                          # Artefactos de compilación (PyInstaller)
+│   ├── hives_icon.png
+│   ├── hives.ico
+│   └── README.md
 ├── data/                           # Almacenamiento local
 │   ├── data.db                     # Base de datos SQLite (histórico de análisis)
 │   └── hives.log                   # Registro de la aplicación
-├── dist/                           # Distribuibles generados (ejecutables)
+├── docs/                           # Documentación del TFG (plantilla LaTeX)
+│   ├── memoria.tex                 # Documento maestro de la memoria
+│   ├── anexos.tex                  # Documento maestro de anexos
+│   ├── tex/                        # Secciones y subsecciones
+│   ├── img/                        # Imágenes
+│   ├── bibliografia.bib
+│   └── ...
+├── LICENSE                         # Licencia GPL v3
 ├── models/                         # Modelos de IA, datasets y notebooks
 │   ├── mejor_modelo_final.keras    # Modelo de producción (TensorFlow)
 │   ├── clases.json                 # Etiquetas de las 5 clases de miel
@@ -184,14 +193,13 @@ HIVES/
 │   └── ...
 ├── src/                            # Código fuente Python
 │   ├── main.py                     # Punto de entrada de la aplicación
+│   ├── runtime_hook.py             # Hook runtime para PyInstaller
 │   ├── constants.py                # Constantes (legacy - no modificar)
-│   ├── sensor.py                   # Módulo sensor (legacy - no modificar)
 │   ├── db/                         # Módulo BD (legacy - no modificar)
 │   │   └── seeder.py
 │   ├── hooks/                      # Hooks para PyInstaller
-│   │   ├── hook-keras.py
 │   │   ├── hook-matplotlib.py
-│   │   └── hook-tensorflow.py
+│   │   └── hook-xgboost.py
 │   └── hives/                      # Paquete activo de la aplicación
 │       ├── __init__.py
 │       ├── constants.py            # Constantes (baudrate, longitudes de onda, rutas)
@@ -207,6 +215,7 @@ HIVES/
 │       ├── inference/
 │       │   └── model.py            # Carga y predicción del modelo .keras
 │       └── reports/
+│           ├── __init__.py
 │           └── pdf_report.py       # Generación de informes PDF con fpdf2
 ├── tests/                          # Suite de tests (pytest)
 │   ├── conftest.py                 # Configuración y fixtures compartidos
@@ -216,6 +225,7 @@ HIVES/
 │   ├── test_main_window.py
 │   ├── test_pdf_report.py
 │   ├── test_sensor.py
+│   ├── test_sensor_mock.py
 │   ├── test_widgets.py
 │   └── test_workers.py
 ├── HIVES.spec                      # Especificación de PyInstaller (multiplataforma)
@@ -337,3 +347,11 @@ El ejecutable se generará en `dist/HIVES/`.
 * **Rutas relativas:** La aplicación resuelve las rutas a `data/` y `models/` de forma relativa a `src/`. Ejecuta siempre `python src/main.py` desde la raíz del proyecto.
 * **Concurrencia:** Toda la E/S serie y la inferencia ML se ejecutan en hilos `QThread`. Nunca realices operaciones bloqueantes en el hilo principal de la GUI.
 * **Código legacy:** Existen dos árboles fuente paralelos. `src/hives/` es el paquete activo. Los archivos planos (`src/constants.py`, `src/db/`, `src/sensor.py`) son legacy y no deben modificarse.
+
+## Licencia
+
+HIVEES se distribuye bajo la **GNU General Public License v3.0 (GPL v3)**.
+
+Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo los términos de la GNU General Public License publicada por la Free Software Foundation, ya sea la versión 3 de la Licencia, o (a tu criterio) cualquier versión posterior.
+
+Consulta el archivo [`LICENSE`](LICENSE) para más detalles, o visita https://www.gnu.org/licenses/gpl-3.0.html.
